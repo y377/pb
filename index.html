@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -134,6 +135,8 @@
 
         this.calendar = new FullCalendar.Calendar(calendarEl, {
           initialView: 'dayGridMonth',
+          themeSystem: 'bootstrap5',
+          timeZone: 'Asia/Shanghai', // 设置中国时区
           initialDate: '2025-07-03',
           headerToolbar: {
             left: '',
@@ -143,6 +146,8 @@
           locale: 'zh-cn',
           firstDay: 1, // 设置周一为每周第一天 (0=周日, 1=周一)
           height: 'auto',
+          fixedWeekCount: false, // 不固定6周，根据月份实际情况显示
+          showNonCurrentDates: true, // 是否显示其他月份的日期
           dayMaxEvents: false,
           moreLinkText: '更多',
           noEventsText: '暂无排班',
@@ -226,10 +231,10 @@
         // 美化周几标题
         const headerCells = document.querySelectorAll('.fc-col-header-cell');
         headerCells.forEach(cell => {
-          cell.classList.add('bg-light');
+          cell.classList.add('bg-secondary-subtle');
           const cushion = cell.querySelector('.fc-col-header-cell-cushion');
           if (cushion) {
-            cushion.classList.add('text-secondary', 'fw-semibold', 'text-decoration-none', 'fs-6');
+            cushion.classList.add('text-secondary-emphasis', 'fw-semibold', 'text-decoration-none', 'py-2');
             cushion.style.letterSpacing = '0.5px';
           }
         });
@@ -240,7 +245,7 @@
           const dayCell = dayNumber.closest('.fc-daygrid-day');
           
           // 基础样式
-          dayNumber.classList.add('text-muted', 'fw-normal', 'rounded', 'px-2', 'py-1', 'fs-6', 'text-decoration-none');
+          dayNumber.classList.add('text-info-emphasis', 'rounded', 'px-2', 'py-1', 'fs-6', 'text-decoration-none');
           dayNumber.style.transition = 'all 0.2s ease';
           
           // 判断是否为今日
@@ -257,13 +262,13 @@
           
           // 判断是否为其他月份
           if (dayCell && dayCell.classList.contains('fc-day-other')) {
-            dayNumber.classList.add('text-muted', 'opacity-50');
+            dayNumber.classList.add('text-muted', 'opacity-75');
           }
           
           // 添加悬停效果
           dayNumber.addEventListener('mouseenter', () => {
             if (!dayCell.classList.contains('fc-day-today')) {
-              dayNumber.classList.add('bg-primary', 'bg-opacity-10', 'text-primary');
+              dayNumber.classList.add('bg-primary', 'bg-opacity-10', 'text-body');
             }
             dayNumber.style.transform = 'scale(1.1)';
           });
