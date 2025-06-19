@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" integrity="sha256-pdY4ejLKO67E0CM2tbPtq1DJ3VGDVVdqAR6j3ZwdiE4=" crossorigin="anonymous">
 
   </head>
-<body class="min-vh-100" style="background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-purple) 100%)">
+<body class="min-vh-100" style="background: linear-gradient(135deg, var(--bs-primary-bg-subtle) 0%, var(--bs-purple) 100%)">
   <div class="container px-0 py-2 px-md-4 py-md-4">
     <!-- 日历主体 -->
     <div class="bg-light bg-opacity-75 mx-2 mx-md-0 p-2 p-md-4 p-lg-5 border border-light border-opacity-50 rounded shadow-lg">
@@ -17,25 +17,21 @@
       <div class="row align-items-center mb-2 mb-md-4 g-2">
         <!-- 左侧标题和日期 -->
         <div class="col-12 col-md-8">
-          <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center">
-            <h4 class="text-body mb-1 mb-sm-0 me-sm-3">
-              <i class="bi bi-calendar3 me-2"></i>我的排班日历
-            </h4>
-            <div class="small text-muted" id="current-date"></div>
-          </div>
+         <div class="small text-body" id="current-date"></div>         
         </div>
         <!-- 右侧按钮 -->
         <div class="col-12 col-md-4">
-          <div class="d-flex gap-2 justify-content-start justify-content-md-end">
-            <button class="btn btn-outline-primary btn-sm" id="prevMonth">
+          <div class="d-flex gap-3 justify-content-start justify-content-md-end">
+            <button class="btn btn-outline-primary" id="prevMonth">
               <i class="bi bi-chevron-left"></i><span class="d-none d-lg-inline ms-1">上月</span>
             </button>
-            <button class="btn btn-outline-primary btn-sm" id="nextMonth">
-              <span class="d-none d-lg-inline me-1">下月</span><i class="bi bi-chevron-right"></i>
-            </button>
-            <button class="btn btn-primary btn-sm" id="todayBtn">
+            <button class="btn btn-primary" id="todayBtn">
               <i class="bi bi-house"></i><span class="d-none d-lg-inline ms-1">今天</span>
             </button>
+            <button class="btn btn-outline-primary" id="nextMonth">
+              <span class="d-none d-lg-inline me-2">下月</span><i class="bi bi-chevron-right"></i>
+            </button>
+            
           </div>
         </div>
       </div>
@@ -56,36 +52,20 @@
       constructor() {
         this.shiftTypes = [
           { 
-            title: 'bi-brightness-high 白班', 
-            icon: 'bi-brightness-high',
-            name: '白班',
-            color: 'var(--bs-danger)', 
-            textColor: 'var(--bs-body-bg)',
-            className: 'shift-day'
+            icon: 'bi-sun-fill',
+            name: '白班'
           },
           { 
-            title: 'bi-moon-stars 夜班', 
-            icon: 'bi-moon-stars',
-            name: '夜班',
-            color: 'var(--bs-dark)', 
-            textColor: 'var(--bs-body-bg)',
-            className: 'shift-night'
+            icon: 'bi-moon-stars-fill',
+            name: '夜班'
           },
           { 
-            title: 'bi-cup-hot 休息', 
             icon: 'bi-cup-hot',
-            name: '休息',
-            color: 'var(--bs-success)', 
-            textColor: 'var(--bs-body-bg)',
-            className: 'shift-rest'
+            name: '休息'
           },
           { 
-            title: 'bi-cup-hot 休息', 
             icon: 'bi-cup-hot',
-            name: '休息',
-            color: 'var(--bs-success)', 
-            textColor: 'var(--bs-body-bg)',
-            className: 'shift-rest'
+            name: '休息'
           }
         ];
         this.calendar = null;
@@ -266,13 +246,13 @@
           // 判断是否为今日
           if (dayCell && dayCell.classList.contains('fc-day-today')) {
             dayNumber.classList.remove('text-muted');
-            dayNumber.classList.add('bg-warning', 'text-dark', 'fw-bold', 'shadow-sm');
+            dayNumber.classList.add('text-bg-warning', 'text-dark', 'fw-bold', 'shadow-sm');
           }
           
           // 判断是否为周末
           if (dayCell && (dayCell.classList.contains('fc-day-sat') || dayCell.classList.contains('fc-day-sun'))) {
             dayNumber.classList.remove('text-muted');
-            dayNumber.classList.add('text-primary-emphasis');
+            dayNumber.classList.add('text-bg-danger');
           }
           
           // 判断是否为其他月份
