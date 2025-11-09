@@ -7,7 +7,7 @@
   <title>班表</title>
   <link crossorigin="anonymous" href="https://lib.baomitu.com/twitter-bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
   <link crossorigin="anonymous" href="https://lib.baomitu.com/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <script crossorigin="anonymous" src="https://lib.baomitu.com/twitter-bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script
+  <script crossorigin="anonymous" src="https://lib.baomitu.com/twitter-bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
 </head>
 
 <body class="min-vh-100" style="background: linear-gradient(135deg, var(--bs-primary-bg-subtle) 0%, var(--bs-purple) 100%)">
@@ -94,26 +94,64 @@
         document.getElementById('current-date').textContent = dateStr;
       }
 
+      // 将日期转换为上海时区的日期字符串 (YYYY-MM-DD)
+      getShanghaiDateString(date) {
+        // 使用 Intl.DateTimeFormat 获取上海时区的日期
+        const formatter = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Shanghai',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+        return formatter.format(date);
+      }
+
+      // 获取上海时区日期的 Date 对象（设置为当天0点）
+      getShanghaiDate(date) {
+        const dateStr = this.getShanghaiDateString(date);
+        // 使用上海时区创建日期对象
+        const shanghaiDate = new Date(dateStr + 'T00:00:00+08:00');
+        return shanghaiDate;
+      }
+
       generateEvents(start, end) {
         const events = [];
-        const baseDate = new Date('2025-07-03T00:00:00+08:00'); // 7月3日作为白班基准日期
-        const workStartDate = new Date('2025-07-01T00:00:00+08:00'); // 7月1日开始参加工作
+        // 使用上海时区创建基准日期
+        // 2025-07-03 作为白班基准日期（索引0）
+        const baseDateStr = '2025-07-03';
+        const baseDate = new Date(baseDateStr + 'T00:00:00+08:00');
+        // 2025-07-01 开始参加工作
+        const workStartDateStr = '2025-07-01';
+        const workStartDate = new Date(workStartDateStr + 'T00:00:00+08:00');
+        
         const cycleDays = 4;
         const msPerDay = 24 * 60 * 60 * 1000;
 
-        const current = new Date(start);
-        while (current < end) {
+        // 将 start 和 end 转换为上海时区的日期字符串
+        const startDateStr = this.getShanghaiDateString(start);
+        const endDateStr = this.getShanghaiDateString(end);
+
+        // 从开始日期开始遍历（使用日期字符串）
+        const currentDate = new Date(startDateStr + 'T00:00:00+08:00');
+        const endDate = new Date(endDateStr + 'T00:00:00+08:00');
+        
+        while (currentDate < endDate) {
+          // 获取当前日期在上海时区的日期字符串
+          const currentDateStr = this.getShanghaiDateString(currentDate);
+          
           // 只有在2025年7月1日及以后的日期才显示班次
-          if (current >= workStartDate) {
+          if (currentDate >= workStartDate) {
             // 计算当前日期相对于7月3日(白班基准日)的天数差
-            const diffDays = Math.floor((current - baseDate) / msPerDay);
+            // 统一使用上海时区的日期进行计算
+            const diffDays = Math.floor((currentDate - baseDate) / msPerDay);
             // 确保7月3日是白班(索引0)，然后按周期循环
             const cycleIndex = ((diffDays % cycleDays) + cycleDays) % cycleDays;
 
             const shift = this.shiftTypes[cycleIndex];
+            
             events.push({
               title: shift.name,
-              start: current.toISOString().split('T')[0],
+              start: currentDateStr,
               allDay: true,
               backgroundColor: 'transparent',
               borderColor: 'transparent',
@@ -125,7 +163,8 @@
               }
             });
           }
-          current.setDate(current.getDate() + 1);
+          // 增加一天（使用上海时区）
+          currentDate.setTime(currentDate.getTime() + msPerDay);
         }
         return events;
       }
@@ -180,7 +219,8 @@
             };
           },
           eventDidMount: (info) => {
-            const today = new Date().toISOString().split('T')[0];
+            // 使用上海时区获取今天的日期
+            const today = this.getShanghaiDateString(new Date());
 
             // 清除默认样式
             info.el.style.border = 'none';
