@@ -96,8 +96,8 @@
 
       generateEvents(start, end) {
         const events = [];
-        const baseDate = new Date('2025-07-03'); // 7月3日作为白班基准日期
-        const workStartDate = new Date('2025-07-01'); // 7月1日开始参加工作
+        const baseDate = new Date('2025-07-03T00:00:00+08:00'); // 7月3日作为白班基准日期
+        const workStartDate = new Date('2025-07-01T00:00:00+08:00'); // 7月1日开始参加工作
         const cycleDays = 4;
         const msPerDay = 24 * 60 * 60 * 1000;
 
