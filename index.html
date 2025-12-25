@@ -390,13 +390,21 @@
     });
   </script>
 
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js');
-      });
-    }
-  </script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', async () => {
+      await navigator.serviceWorker.register('/service-worker.js');
+
+      // 第一次安装/更新后，等接管再刷新一次，让资源走 SW 从而进入缓存
+      if (!navigator.serviceWorker.controller) {
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          window.location.reload();
+        });
+      }
+    });
+  }
+</script>
+
 </body>
 
 </html>
