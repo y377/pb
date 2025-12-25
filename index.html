@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 
 <head>
   <meta charset="UTF-8" />
@@ -9,25 +9,21 @@
   <link rel="stylesheet" href="https://cdn.anssl.cn/bootstrap/css/bootstrap.min.css" integrity="sha256-2FMn2Zx6PuH5tdBQDRNwrOo60ts5wWPC9R8jK67b3t4=" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.anssl.cn/bootstrap-icons/font/bootstrap-icons.min.css" integrity="sha256-wefUyJrB+p0O/ADxCplCWnk9z+gX2ODyuv3lm8eDGk4=" crossorigin="anonymous">
   <script src="https://cdn.anssl.cn/bootstrap/js/bootstrap.bundle.min.js" integrity="sha256-5P1JGBOIxI7FBAvT/mb1fCnI5n/NhQKzNUuW7Hq0fMc=" crossorigin="anonymous"></script>
+  <script src="https://cdn.anssl.cn/fullcalendar-6.1.20/index.global.min.js" integrity="sha256-sQEgS6I+FEeOlX4oTVi7qW/HMRAh0O6vifpeZXIMRsg=" crossorigin="anonymous"></script>
 </head>
 
 <body class="min-vh-100" style="background: linear-gradient(135deg, var(--bs-primary-bg-subtle) 0%, var(--bs-purple) 100%)">
-
   <div class="container px-0 py-2 px-md-4 py-md-4">
-    <!-- 日历主体 -->
     <div class="bg-light bg-opacity-75 mx-2 mx-md-0 p-2 p-md-4 p-lg-5 border border-light border-opacity-50 rounded shadow-lg">
-      <!-- 标题和控制区域 -->
       <div class="row align-items-center mb-2 mb-md-4 g-2">
-        <!-- 左侧标题和日期 -->
         <div class="col-12 col-md-8">
           <div class="small text-body" id="current-date"></div>
         </div>
 
-        <!-- 右侧：班组选择 + 按钮 -->
         <div class="col-12 col-md-4">
-          <div class="d-flex gap-3 justify-content-start justify-content-md-end align-items-center">
-            <div class="d-flex align-items-center gap-2">
-              <span class="small text-body">班组</span>
+          <div class="d-flex gap-3 justify-content-start justify-content-md-end align-items-center flex-nowrap">
+            <div class="d-flex align-items-center gap-2 flex-nowrap">
+              <span class="small text-body text-nowrap">班次：</span>
               <select class="form-select form-select-sm w-auto" id="shiftGroup">
                 <option value="A" selected>A班</option>
                 <option value="B">B班</option>
@@ -36,20 +32,19 @@
               </select>
             </div>
 
-            <button class="btn btn-outline-primary" id="prevMonth">
+            <button class="btn btn-outline-primary text-nowrap" id="prevMonth">
               <i class="bi bi-chevron-left"></i><span class="d-none d-lg-inline ms-1">上月</span>
             </button>
-            <button class="btn btn-primary" id="todayBtn">
+            <button class="btn btn-primary text-nowrap" id="todayBtn">
               <i class="bi bi-house"></i><span class="d-none d-lg-inline ms-1">今天</span>
             </button>
-            <button class="btn btn-outline-primary" id="nextMonth">
+            <button class="btn btn-outline-primary text-nowrap" id="nextMonth">
               <span class="d-none d-lg-inline me-2">下月</span><i class="bi bi-chevron-right"></i>
             </button>
           </div>
         </div>
       </div>
 
-      <!-- 日历容器 -->
       <div class="row">
         <div class="col-12">
           <div id="calendar"></div>
@@ -58,168 +53,156 @@
     </div>
   </div>
 
-  <script src="https://cdn.anssl.cn/fullcalendar-6.1.20/index.global.min.js" integrity="sha256-sQEgS6I+FEeOlX4oTVi7qW/HMRAh0O6vifpeZXIMRsg=" crossorigin="anonymous"></script>
-
   <script>
     class ShiftCalendar {
+      #calendar = null;
+      #group = 'A';
+
+      // 统一基准日：在这一天，四个班组分别处于白/夜/休/休
+      #baseDateStr = '2026-01-01';
+
+      // 在 baseDate 这一天，各班组处于循环的哪个位置：0=白 1=夜 2=休 3=休
+      // 这样能保证：A(1号白) -> A(2号夜) ✅
+      #baseIndexByGroup = {
+        A: 0, // 2026-01-01 白班（09-18）
+        B: 1, // 2026-01-01 夜班（18-次日09）
+        C: 2, // 2026-01-01 休息
+        D: 3  // 2026-01-01 休息（第二个休）
+      };
+
+      #shiftTypes = [
+        { icon: 'bi-sun-fill', name: '白班', startTime: '09:00', endTime: '18:00' },
+        { icon: 'bi-moon-stars-fill', name: '夜班', startTime: '18:00', endTime: '09:00' },
+        { icon: 'bi-cup-hot', name: '休息' },
+        { icon: 'bi-cup-hot-fill', name: '休息' }
+      ];
+
+      #bgMap = {
+        '白班': 'bg-secondary-subtle',
+        '夜班': 'bg-dark-subtle',
+        '休息': 'bg-success-subtle',
+      };
+
       constructor() {
-        // 默认 A 班
-        this.group = 'A';
-
-        // 每个班组的“锚点”：保证切换后循环对齐（长期循环，不限月份）
-        // 规则：所有班组都是 白 → 夜 → 休 → 休 的 4 天游程
-        // 要求：
-        // A：2026-01-01 09:00-18:00 白班
-        // B：2026-01-01 18:00-次日09:00 夜班
-        // C：2026-01-02 09:00-18:00 白班
-        // D：2026-01-02 18:00-次日09:00 夜班
-        this.groupAnchors = {
-          A: { date: '2026-01-01', index: 0 }, // 0=白,1=夜,2=休,3=休
-          B: { date: '2026-01-01', index: 1 },
-          C: { date: '2026-01-02', index: 0 },
-          D: { date: '2026-01-02', index: 1 }
-        };
-
-        this.shiftTypes = [
-          { icon: 'bi-sun-fill', name: '白班' },         // 0
-          { icon: 'bi-moon-stars-fill', name: '夜班' },  // 1
-          { icon: 'bi-cup-hot', name: '休息' },          // 2
-          { icon: 'bi-cup-hot', name: '休息' }           // 3
-        ];
-
-        this.calendar = null;
-        this.init();
+        this.#updateDateTime();
+        this.#setupEventListeners();
+        this.#initCalendar();
+        setInterval(() => this.#updateDateTime(), 1000);
       }
 
-      init() {
-        this.updateDateTime();
-        this.setupEventListeners();
-        this.initCalendar();
-        setInterval(() => this.updateDateTime(), 1000);
-      }
-
-      // 顶部日期：去掉“日”（不影响“星期日”）
-      updateDateTime() {
+      #updateDateTime() {
         const now = new Date();
-        const parts = new Intl.DateTimeFormat('zh-CN', {
-          timeZone: 'Asia/Shanghai',
+        const dateStr = now.toLocaleDateString('zh-CN', {
           year: 'numeric',
           month: 'long',
           day: 'numeric',
           weekday: 'long'
-        }).formatToParts(now);
-
-        const get = (type) => parts.find(p => p.type === type)?.value || '';
-        const year = get('year');
-        const month = get('month');
-        const day = get('day');
-        const weekday = get('weekday');
-
-        // 不拼“日”
-        document.getElementById('current-date').textContent = `${year}年${month}${day} ${weekday}`;
+        });
+        document.getElementById('current-date').textContent = dateStr;
       }
 
-      // YYYY-MM-DD（上海时区）
-      getShanghaiDateString(date) {
-        const formatter = new Intl.DateTimeFormat('en-CA', {
+      #getShanghaiDateString = (date) => {
+        const fmt = new Intl.DateTimeFormat('en-CA', {
           timeZone: 'Asia/Shanghai',
           year: 'numeric',
           month: '2-digit',
           day: '2-digit'
         });
-        return formatter.format(date);
-      }
+        return fmt.format(date);
+      };
 
-      // 生成 "YYYY-MM-DDTHH:mm:ss+08:00"
-      makeShanghaiDateTime(dateStr, hhmmss) {
-        return `${dateStr}T${hhmmss}+08:00`;
-      }
-
-      addDaysShanghai(dateStr, days) {
+      #addDaysShanghai = (dateStr, days) => {
         const msPerDay = 24 * 60 * 60 * 1000;
-        const d = new Date(dateStr + 'T00:00:00+08:00');
+        const d = new Date(`${dateStr}T00:00:00+08:00`);
         d.setTime(d.getTime() + days * msPerDay);
-        return this.getShanghaiDateString(d);
-      }
+        return this.#getShanghaiDateString(d);
+      };
 
-      generateEvents(start, end) {
+      #mod = (n, m) => ((n % m) + m) % m;
+
+      // ✅ 给定 YYYY-MM-DD，算该班组当天是白/夜/休（支持往前推：2025-12-31 也能算）
+      #getShiftForDay = (dateStr) => {
+        const msPerDay = 24 * 60 * 60 * 1000;
+
+        const baseDate = new Date(`${this.#baseDateStr}T00:00:00+08:00`);
+        const d = new Date(`${dateStr}T00:00:00+08:00`);
+
+        const diffDays = Math.floor((d - baseDate) / msPerDay);
+        const baseIndex = this.#baseIndexByGroup[this.#group] ?? 0;
+
+        const cycleIndex = this.#mod(diffDays + baseIndex, 4);
+        return { ...this.#shiftTypes[cycleIndex], cycleIndex };
+      };
+
+      // 月视图里统一 allDay：避免夜班跨天渲染成横条“溢出”
+      #generateEvents = (start, end) => {
         const events = [];
         const msPerDay = 24 * 60 * 60 * 1000;
 
-        // 从 2026-01-01 开始生效
-        const workStartDate = new Date('2026-01-01T00:00:00+08:00');
+        const startStr = this.#getShanghaiDateString(start);
+        const endStr = this.#getShanghaiDateString(end);
 
-        const anchor = this.groupAnchors[this.group] || this.groupAnchors.A;
-        const anchorDate = new Date(anchor.date + 'T00:00:00+08:00');
+        let cur = new Date(`${startStr}T00:00:00+08:00`);
+        const endD = new Date(`${endStr}T00:00:00+08:00`);
 
-        // 将 start/end 转为上海日期边界
-        const startDateStr = this.getShanghaiDateString(start);
-        const endDateStr = this.getShanghaiDateString(end);
+        while (cur < endD) {
+          const dayStr = this.#getShanghaiDateString(cur);
+          const shift = this.#getShiftForDay(dayStr);
 
-        let currentDate = new Date(startDateStr + 'T00:00:00+08:00');
-        const endDate = new Date(endDateStr + 'T00:00:00+08:00');
-
-        while (currentDate < endDate) {
-          if (currentDate >= workStartDate) {
-            const currentDateStr = this.getShanghaiDateString(currentDate);
-
-            // 以“自然日”作为循环步长
-            const diffDays = Math.floor((currentDate - anchorDate) / msPerDay);
-            const cycleIndex = ((diffDays + anchor.index) % 4 + 4) % 4;
-            const shift = this.shiftTypes[cycleIndex];
-
-            if (shift.name === '白班') {
-              // 09:00-18:00
-              events.push({
-                title: shift.name,
-                start: this.makeShanghaiDateTime(currentDateStr, '09:00:00'),
-                end: this.makeShanghaiDateTime(currentDateStr, '18:00:00'),
-                allDay: false,
-                backgroundColor: 'transparent',
-                borderColor: 'transparent',
-                textColor: 'inherit',
-                classNames: [],
-                extendedProps: { icon: shift.icon, shiftType: shift.name }
-              });
-            } else if (shift.name === '夜班') {
-              // 18:00-次日09:00
-              const nextDateStr = this.addDaysShanghai(currentDateStr, 1);
-              events.push({
-                title: shift.name,
-                start: this.makeShanghaiDateTime(currentDateStr, '18:00:00'),
-                end: this.makeShanghaiDateTime(nextDateStr, '09:00:00'),
-                allDay: false,
-                backgroundColor: 'transparent',
-                borderColor: 'transparent',
-                textColor: 'inherit',
-                classNames: [],
-                extendedProps: { icon: shift.icon, shiftType: shift.name }
-              });
-            } else {
-              // 休息：全天显示，保持你原来的“格子里有标记”体验
-              events.push({
-                title: shift.name,
-                start: currentDateStr,
-                allDay: true,
-                backgroundColor: 'transparent',
-                borderColor: 'transparent',
-                textColor: 'inherit',
-                classNames: [],
-                extendedProps: { icon: shift.icon, shiftType: shift.name }
-              });
+          events.push({
+            title: shift.name,
+            start: dayStr,
+            allDay: true,
+            backgroundColor: 'transparent',
+            borderColor: 'transparent',
+            textColor: 'inherit',
+            extendedProps: {
+              icon: shift.icon,
+              shiftType: shift.name,
+              startTime: shift.startTime ?? null, // 白=09:00 夜=18:00
+              endTime: shift.endTime ?? null,     // 白=18:00 夜=09:00
+              endDate: shift.name === '夜班' ? this.#addDaysShanghai(dayStr, 1) : null
             }
-          }
+          });
 
-          currentDate.setTime(currentDate.getTime() + msPerDay);
+          cur.setTime(cur.getTime() + msPerDay);
         }
-
         return events;
-      }
+      };
 
-      initCalendar() {
+      #clearBgOnVisibleCells = () => {
+        document.querySelectorAll('.fc-daygrid-day[data-date]').forEach(dayCell => {
+          const frame = dayCell.querySelector('.fc-daygrid-day-frame');
+          const inner = dayCell.querySelector('.fc-scrollgrid-sync-inner');
+          frame?.classList.remove('bg-secondary-subtle', 'bg-dark-subtle', 'bg-success-subtle');
+          inner?.classList.remove('bg-secondary-subtle', 'bg-dark-subtle', 'bg-success-subtle');
+        });
+      };
+
+      // ✅ 直接按可见格子算背景：首屏最上面那排也会显示
+      #applyBgForVisibleCells = () => {
+        this.#clearBgOnVisibleCells();
+
+        document.querySelectorAll('.fc-daygrid-day[data-date]').forEach(dayCell => {
+          const dateStr = dayCell.getAttribute('data-date');
+          if (!dateStr) return;
+
+          const shift = this.#getShiftForDay(dateStr);
+          const bg = this.#bgMap[shift.name];
+          if (!bg) return;
+
+          // 你要求：分别给这两个类加
+          const frame = dayCell.querySelector('.fc-daygrid-day-frame');
+          const inner = dayCell.querySelector('.fc-scrollgrid-sync-inner');
+          frame?.classList.add(bg);
+          inner?.classList.add(bg);
+        });
+      };
+
+      #initCalendar() {
         const calendarEl = document.getElementById('calendar');
 
-        this.calendar = new FullCalendar.Calendar(calendarEl, {
+        this.#calendar = new FullCalendar.Calendar(calendarEl, {
           initialView: 'dayGridMonth',
           themeSystem: 'bootstrap5',
           timeZone: 'Asia/Shanghai',
@@ -234,32 +217,40 @@
           moreLinkText: '更多',
           noEventsText: '暂无排班',
           eventDisplay: 'block',
-
-          // 月视图不显示时间（仍是“白班/夜班/休息”）
           displayEventTime: false,
 
+          // ✅ 只去掉日历格子里的“日”
+          dayCellContent: (arg) => {
+            const txt = (arg.dayNumberText ?? '').replace('日', '');
+            return { html: txt };
+          },
+
           events: (info, successCallback) => {
-            successCallback(this.generateEvents(info.start, info.end));
+            successCallback(this.#generateEvents(info.start, info.end));
+          },
+
+          datesSet: () => {
+            this.#beautifyCalendarWithBootstrap();
+            requestAnimationFrame(() => this.#applyBgForVisibleCells());
+          },
+
+          eventsSet: () => {
+            requestAnimationFrame(() => this.#applyBgForVisibleCells());
           },
 
           eventContent: (arg) => {
-            const icon = arg.event.extendedProps.icon;
+            const { icon, shiftType } = arg.event.extendedProps ?? {};
             const title = arg.event.title;
-            const shiftType = arg.event.extendedProps.shiftType;
 
             let colorClass = '';
-            if (shiftType === '白班') {
-              colorClass = 'text-warning';
-            } else if (shiftType === '夜班') {
-              colorClass = 'text-dark';
-            } else if (shiftType === '休息') {
-              colorClass = 'text-success';
-            }
+            if (shiftType === '白班') colorClass = 'text-warning-emphasis';
+            else if (shiftType === '夜班') colorClass = 'text-dark-emphasis';
+            else if (shiftType === '休息') colorClass = 'text-success';
 
             return {
               html: `
-                <div class="d-flex flex-column flex-md-row align-items-center justify-content-center gap-1 gap-md-2 p-1" style="border: none; background: transparent;">
-                  <i class="bi ${icon} ${colorClass} fs-6"></i>
+                <div class="d-flex flex-column flex-md-row align-items-center justify-content-center gap-1 gap-md-2 p-1" style="border:none;background:transparent;">
+                  <i class="bi ${icon ?? ''} ${colorClass} fs-6"></i>
                   <span class="${colorClass} fw-bold">${title}</span>
                 </div>
               `
@@ -267,11 +258,9 @@
           },
 
           eventDidMount: (info) => {
-            // 今日高亮：因为现在事件 start 带时间，所以用“日期字符串”比对
-            const today = this.getShanghaiDateString(new Date());
-            const eventDay = this.getShanghaiDateString(info.event.start);
+            const today = this.#getShanghaiDateString(new Date());
+            const eventDay = this.#getShanghaiDateString(info.event.start);
 
-            // 清除默认样式
             info.el.style.border = 'none';
             info.el.style.background = 'transparent';
             info.el.style.boxShadow = 'none';
@@ -291,7 +280,6 @@
               }
             }
 
-            // 悬停效果（保留你原来的）
             info.el.addEventListener('mouseenter', () => {
               info.el.style.transform = 'scale(1.05)';
               info.el.style.zIndex = '100';
@@ -303,19 +291,14 @@
               info.el.style.zIndex = '1';
             });
           },
-
-          datesSet: () => {
-            this.beautifyCalendarWithBootstrap();
-          },
         });
 
-        this.calendar.render();
+        this.#calendar.render();
+        requestAnimationFrame(() => this.#applyBgForVisibleCells());
       }
 
-      beautifyCalendarWithBootstrap() {
-        // 美化周几标题
-        const headerCells = document.querySelectorAll('.fc-col-header-cell');
-        headerCells.forEach(cell => {
+      #beautifyCalendarWithBootstrap() {
+        document.querySelectorAll('.fc-col-header-cell').forEach(cell => {
           cell.classList.add('bg-secondary-subtle');
           const cushion = cell.querySelector('.fc-col-header-cell-cushion');
           if (cushion) {
@@ -324,95 +307,68 @@
           }
         });
 
-        // 美化日期数字
-        const dayNumbers = document.querySelectorAll('.fc-daygrid-day-number');
-        dayNumbers.forEach(dayNumber => {
+        document.querySelectorAll('.fc-daygrid-day-number').forEach(dayNumber => {
           const dayCell = dayNumber.closest('.fc-daygrid-day');
 
           dayNumber.classList.add('text-info-emphasis', 'rounded', 'px-2', 'py-1', 'fs-6', 'text-decoration-none');
           dayNumber.style.transition = 'all 0.2s ease';
 
-          // 今日
-          if (dayCell && dayCell.classList.contains('fc-day-today')) {
+          if (dayCell?.classList.contains('fc-day-today')) {
             dayNumber.classList.remove('text-muted');
             dayNumber.classList.add('text-bg-warning', 'text-dark', 'fw-bold', 'shadow-sm');
           }
 
-          // 周末
-          if (dayCell && (dayCell.classList.contains('fc-day-sat') || dayCell.classList.contains('fc-day-sun'))) {
+          if (dayCell?.classList.contains('fc-day-sat') || dayCell?.classList.contains('fc-day-sun')) {
             dayNumber.classList.remove('text-muted');
             dayNumber.classList.add('text-bg-danger');
           }
 
-          // 其他月份
-          if (dayCell && dayCell.classList.contains('fc-day-other')) {
+          if (dayCell?.classList.contains('fc-day-other')) {
             dayNumber.classList.add('text-muted', 'opacity-75');
           }
 
           dayNumber.addEventListener('mouseenter', () => {
-            if (!dayCell.classList.contains('fc-day-today')) {
+            if (!dayCell?.classList.contains('fc-day-today')) {
               dayNumber.classList.add('bg-primary', 'bg-opacity-10', 'text-body');
             }
             dayNumber.style.transform = 'scale(1.1)';
           });
 
           dayNumber.addEventListener('mouseleave', () => {
-            if (!dayCell.classList.contains('fc-day-today')) {
+            if (!dayCell?.classList.contains('fc-day-today')) {
               dayNumber.classList.remove('bg-primary', 'bg-opacity-10', 'text-primary');
             }
             dayNumber.style.transform = 'scale(1)';
           });
         });
 
-        // 美化月份标题
-        const title = document.querySelector('.fc-toolbar-title');
-        if (title) {
-          title.classList.add('text-secondary', 'fw-bold');
-        }
+        document.querySelector('.fc-toolbar-title')?.classList.add('text-secondary', 'fw-bold');
 
-        // 美化日历边框
-        const dayCells = document.querySelectorAll('.fc-daygrid-day');
-        dayCells.forEach(cell => {
+        document.querySelectorAll('.fc-daygrid-day').forEach(cell => {
           cell.classList.add('border-light', 'border-opacity-50');
         });
       }
 
-      setupEventListeners() {
-        document.getElementById('prevMonth')?.addEventListener('click', () => {
-          this.calendar?.prev();
-        });
+      #setupEventListeners() {
+        document.getElementById('prevMonth')?.addEventListener('click', () => this.#calendar?.prev());
+        document.getElementById('nextMonth')?.addEventListener('click', () => this.#calendar?.next());
+        document.getElementById('todayBtn')?.addEventListener('click', () => this.#calendar?.today());
 
-        document.getElementById('nextMonth')?.addEventListener('click', () => {
-          this.calendar?.next();
-        });
-
-        document.getElementById('todayBtn')?.addEventListener('click', () => {
-          this.calendar?.today();
-        });
-
-        // 班组切换：刷新事件（日期对齐由锚点保证）
         document.getElementById('shiftGroup')?.addEventListener('change', (e) => {
-          this.group = e.target.value || 'A';
-          this.calendar?.refetchEvents();
+          this.#group = e.target.value || 'A';
+          this.#calendar?.refetchEvents(); // eventsSet 会自动重新染色
         });
 
-        // 键盘快捷键
         document.addEventListener('keydown', (e) => {
-          if (e.key === 'ArrowLeft') this.calendar?.prev();
-          if (e.key === 'ArrowRight') this.calendar?.next();
-          if (e.key === 'Home') this.calendar?.today();
+          if (e.key === 'ArrowLeft') this.#calendar?.prev();
+          if (e.key === 'ArrowRight') this.#calendar?.next();
+          if (e.key === 'Home') this.#calendar?.today();
         });
       }
     }
 
-    // 初始化应用
     document.addEventListener('DOMContentLoaded', () => {
       new ShiftCalendar();
-
-      // 添加页面加载动画（你原来写的，保留）
-      document.querySelectorAll('.animate-fade-in').forEach((el, index) => {
-        el.style.animationDelay = `${index * 0.15}s`;
-      });
     });
   </script>
 </body>
