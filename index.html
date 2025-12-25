@@ -6,6 +6,13 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>班表</title>
+  <meta name="theme-color" content="#0d6efd">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="班表">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon-180.png">
   <link rel="stylesheet" href="https://cdn.anssl.cn/bootstrap/css/bootstrap.min.css" integrity="sha256-2FMn2Zx6PuH5tdBQDRNwrOo60ts5wWPC9R8jK67b3t4=" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.anssl.cn/bootstrap-icons/font/bootstrap-icons.min.css" integrity="sha256-wefUyJrB+p0O/ADxCplCWnk9z+gX2ODyuv3lm8eDGk4=" crossorigin="anonymous">
   <script src="https://cdn.anssl.cn/bootstrap/js/bootstrap.bundle.min.js" integrity="sha256-5P1JGBOIxI7FBAvT/mb1fCnI5n/NhQKzNUuW7Hq0fMc=" crossorigin="anonymous"></script>
@@ -84,6 +91,11 @@
       };
 
       constructor() {
+        const saved = localStorage.getItem('shiftGroup') || 'A';
+        this.#group = (['A','B','C','D'].includes(saved) ? saved : 'A');
+        const sel = document.getElementById('shiftGroup');
+        if (sel) sel.value = this.#group;
+
         this.#updateDateTime();
         this.#setupEventListeners();
         this.#initCalendar();
@@ -355,7 +367,9 @@
         document.getElementById('todayBtn')?.addEventListener('click', () => this.#calendar?.today());
 
         document.getElementById('shiftGroup')?.addEventListener('change', (e) => {
-          this.#group = e.target.value || 'A';
+          const g = (e.target.value || 'A');
+          this.#group = (['A','B','C','D'].includes(g) ? g : 'A');
+          localStorage.setItem('shiftGroup', this.#group);
           this.#calendar?.refetchEvents(); // eventsSet 会自动重新染色
         });
 
@@ -370,6 +384,14 @@
     document.addEventListener('DOMContentLoaded', () => {
       new ShiftCalendar();
     });
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js');
+      });
+    }
   </script>
 </body>
 
