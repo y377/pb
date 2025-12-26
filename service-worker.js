@@ -1,8 +1,12 @@
-/* pb.jsjs.net - shift-calendar PWA service worker */
-const VERSION = 'v3';                 // 你每次改 SW 就改这个，强制更新
+/* shift-calendar PWA – Service Worker (方案一：no-cors → cache-first) */
+
+const VERSION = 'v4'; // 修改 SW 时递增
 const APP_CACHE = `app-${VERSION}`;
 const CDN_CACHE = `cdn-${VERSION}`;
 
+/* ======================
+   App Shell（同源）
+====================== */
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -14,7 +18,10 @@ const APP_SHELL = [
   '/icons/apple-touch-icon-180.png'
 ];
 
-// ✅ 安装时预缓存你要离线必用的 CDN 入口资源
+/* ======================
+   CDN 预缓存（跨域）
+   使用 no-cors → opaque
+====================== */
 const CDN_PRECACHE = [
   'https://cdn.anssl.cn/bootstrap/css/bootstrap.min.css',
   'https://cdn.anssl.cn/bootstrap-icons/font/bootstrap-icons.min.css',
@@ -22,19 +29,26 @@ const CDN_PRECACHE = [
   'https://cdn.anssl.cn/fullcalendar-6.1.20/index.global.min.js'
 ];
 
+/* ======================
+   install
+====================== */
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
-    // 1) App 壳缓存
-    const app = await caches.open(APP_CACHE);
-    await app.addAll(APP_SHELL);
+    // App Shell
+    const appCache = await caches.open(APP_CACHE);
+    await appCache.addAll(APP_SHELL);
 
-    // 2) CDN 预缓存（no-cors => 能缓存跨域资源为 opaque，离线可用）
-    const cdn = await caches.open(CDN_CACHE);
+    // CDN 资源（no-cors，只缓存，不解析）
+    const cdnCache = await caches.open(CDN_CACHE);
     await Promise.allSettled(
       CDN_PRECACHE.map(async (url) => {
-        const req = new Request(url, { mode: 'no-cors' });
-        const res = await fetch(req);
-        await cdn.put(req, res);
+        try {
+          const req = new Request(url, { mode: 'no-cors' });
+          const res = await fetch(req);
+          await cdnCache.put(req, res);
+        } catch (_) {
+          // CDN 失败不阻断 install
+        }
       })
     );
   })());
@@ -42,75 +56,89 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
+/* ======================
+   activate
+====================== */
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    // 清旧缓存
     const keys = await caches.keys();
-    await Promise.all(keys.map((k) => {
-      if (![APP_CACHE, CDN_CACHE].includes(k)) return caches.delete(k);
-      return null;
-    }));
+    await Promise.all(
+      keys.map((key) => {
+        if (![APP_CACHE, CDN_CACHE].includes(key)) {
+          return caches.delete(key);
+        }
+        return null;
+      })
+    );
     await self.clients.claim();
   })());
 });
 
+/* ======================
+   工具函数
+====================== */
 async function cacheFirst(req, cacheName) {
   const cache = await caches.open(cacheName);
-  const cached = await cache.match(req, { ignoreSearch: false });
+  const cached = await cache.match(req);
   if (cached) return cached;
+
   const res = await fetch(req);
   await cache.put(req, res.clone());
   return res;
 }
 
-async function staleWhileRevalidate(req, cacheName) {
+async function cacheFirstNoCors(req, cacheName) {
   const cache = await caches.open(cacheName);
-  const cached = await cache.match(req, { ignoreSearch: false });
+  const cached = await cache.match(req);
+  if (cached) return cached;
 
-  const fetchPromise = fetch(req).then(async (res) => {
-    await cache.put(req, res.clone());
-    return res;
-  }).catch(() => null);
-
-  return cached || (await fetchPromise) || new Response('', { status: 504, statusText: 'Offline' });
+  // 保持 no-cors 语义
+  const res = await fetch(req);
+  return res;
 }
 
+/* ======================
+   fetch
+====================== */
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // 页面导航：网络优先，失败回退 index（保证离线可打开）
+  /* ---- 页面导航 ---- */
   if (req.mode === 'navigate') {
     event.respondWith((async () => {
       try {
         const fresh = await fetch(req);
         const cache = await caches.open(APP_CACHE);
-        // 保持 index 最新
         await cache.put('/index.html', fresh.clone());
         return fresh;
       } catch {
         const cache = await caches.open(APP_CACHE);
-        return (await cache.match('/index.html')) || (await cache.match('/')) || new Response('Offline', { status: 503 });
+        return (
+          (await cache.match('/index.html')) ||
+          new Response('Offline', { status: 503 })
+        );
       }
     })());
     return;
   }
 
-  // 只缓存 GET
+  // 只处理 GET
   if (req.method !== 'GET') return;
 
-  // 同源静态资源：cache-first（离线稳定）
+  /* ---- 同源资源 ---- */
   if (url.origin === self.location.origin) {
     event.respondWith(cacheFirst(req, APP_CACHE));
     return;
   }
 
-  // 跨域静态资源（脚本/样式/字体/图片）：SWR（包含 bootstrap-icons 字体）
-  const dest = req.destination; // script | style | font | image ...
-  const isAsset = ['script', 'style', 'font', 'image'].includes(dest);
+  /* ---- 跨域静态资源（no-cors）---- */
+  const isAsset = ['script', 'style', 'font', 'image'].includes(req.destination);
 
-  if (url.protocol === 'https:' && isAsset) {
-    event.respondWith(staleWhileRevalidate(req, CDN_CACHE));
+  if (isAsset && req.mode === 'no-cors') {
+    event.respondWith(cacheFirstNoCors(req, CDN_CACHE));
     return;
   }
+
+  // 其他请求：直连网络
 });
