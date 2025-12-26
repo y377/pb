@@ -17,10 +17,16 @@
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png">
 
+  <!-- lunar-javascript（固定 patch 版本，避免 major 更新破坏） -->
+  <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.7.7/lunar.min.js"></script>
+
   <link rel="stylesheet" href="https://cdn.anssl.cn/bootstrap/css/bootstrap.min.css" integrity="sha256-2FMn2Zx6PuH5tdBQDRNwrOo60ts5wWPC9R8jK67b3t4=" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.anssl.cn/bootstrap-icons/font/bootstrap-icons.min.css" integrity="sha256-wefUyJrB+p0O/ADxCplCWnk9z+gX2ODyuv3lm8eDGk4=" crossorigin="anonymous">
   <script src="https://cdn.anssl.cn/bootstrap/js/bootstrap.bundle.min.js" integrity="sha256-5P1JGBOIxI7FBAvT/mb1fCnI5n/NhQKzNUuW7Hq0fMc=" crossorigin="anonymous"></script>
   <script src="https://cdn.anssl.cn/fullcalendar-6.1.20/index.global.min.js" integrity="sha256-sQEgS6I+FEeOlX4oTVi7qW/HMRAh0O6vifpeZXIMRsg=" crossorigin="anonymous"></script>
+  <style>
+    .zhou6 {background: #c5b3e6}
+  </style>
 </head>
 
 <body class="min-vh-100" style="background: linear-gradient(135deg, var(--bs-primary-bg-subtle) 0%, var(--bs-purple) 100%)">
@@ -69,16 +75,13 @@
       #calendar = null;
       #group = 'A';
 
-      // 统一基准日：在这一天，四个班组分别处于白/夜/休/休
       #baseDateStr = '2026-01-01';
 
-      // 在 baseDate 这一天，各班组处于循环的哪个位置：0=白 1=夜 2=休 3=休
-      // 这样能保证：A(1号白) -> A(2号夜) ✅
       #baseIndexByGroup = {
-        A: 0, // 2026-01-01 白班（09-18）
-        B: 1, // 2026-01-01 夜班（18-次日09）
-        C: 2, // 2026-01-01 休息
-        D: 3  // 2026-01-01 休息（第二个休）
+        A: 0,
+        B: 1,
+        C: 2,
+        D: 3
       };
 
       #shiftTypes = [
@@ -136,7 +139,6 @@
 
       #mod = (n, m) => ((n % m) + m) % m;
 
-      // ✅ 给定 YYYY-MM-DD，算该班组当天是白/夜/休（支持往前推：2025-12-31 也能算）
       #getShiftForDay = (dateStr) => {
         const msPerDay = 24 * 60 * 60 * 1000;
 
@@ -150,7 +152,6 @@
         return { ...this.#shiftTypes[cycleIndex], cycleIndex };
       };
 
-      // 月视图里统一 allDay：避免夜班跨天渲染成横条“溢出”
       #generateEvents = (start, end) => {
         const events = [];
         const msPerDay = 24 * 60 * 60 * 1000;
@@ -175,8 +176,8 @@
             extendedProps: {
               icon: shift.icon,
               shiftType: shift.name,
-              startTime: shift.startTime ?? null, // 白=09:00 夜=18:00
-              endTime: shift.endTime ?? null,     // 白=18:00 夜=09:00
+              startTime: shift.startTime ?? null,
+              endTime: shift.endTime ?? null,
               endDate: shift.name === '夜班' ? this.#addDaysShanghai(dayStr, 1) : null
             }
           });
@@ -195,7 +196,6 @@
         });
       };
 
-      // ✅ 直接按可见格子算背景：首屏最上面那排也会显示
       #applyBgForVisibleCells = () => {
         this.#clearBgOnVisibleCells();
 
@@ -207,7 +207,6 @@
           const bg = this.#bgMap[shift.name];
           if (!bg) return;
 
-          // 你要求：分别给这两个类加
           const frame = dayCell.querySelector('.fc-daygrid-day-frame');
           const inner = dayCell.querySelector('.fc-scrollgrid-sync-inner');
           frame?.classList.add(bg);
@@ -235,10 +234,73 @@
           eventDisplay: 'block',
           displayEventTime: false,
 
-          // ✅ 只去掉日历格子里的“日”
+          // ✅ 日期数字 + 第二行标签（只用 Bootstrap 类，不写 CSS）
           dayCellContent: (arg) => {
-            const txt = (arg.dayNumberText ?? '').replace('日', '');
-            return { html: txt };
+            const dayNum = (arg.dayNumberText ?? "").replace("日", "");
+
+            const ymd = this.#getShanghaiDateString(arg.date);
+            const [y, m, d] = ymd.split("-").map(Number);
+
+            const solar = Solar.fromYmd(y, m, d);
+            const lunar = solar.getLunar();
+
+            let lunarText = lunar.getDayInChinese?.() ?? "";
+            if (lunarText === "初一") {
+              lunarText = `${lunar.getMonthInChinese?.() ?? ""}月`;
+            }
+
+            const festivals = lunar.getFestivals?.() ?? [];
+            const jieqi = lunar.getJieQi?.() ?? "";
+
+            // 除夕：明天是正月初一
+            const tomorrow = new Date(`${ymd}T12:00:00+08:00`);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tYmd = this.#getShanghaiDateString(tomorrow);
+            const [ty, tm, td] = tYmd.split("-").map(Number);
+            const tLunar = Solar.fromYmd(ty, tm, td).getLunar();
+            const isChuxi = (tLunar.getMonthInChinese?.() === "正" && tLunar.getDayInChinese?.() === "初一");
+
+            // 法定/补班
+            const h = HolidayUtil.getHoliday(ymd);
+            const isWork = h ? (h.isWork?.() ?? h.work ?? false) : false;
+            const holidayName = h ? (h.getName?.() ?? h.name ?? "") : "";
+            const legalTag = h ? (isWork ? "补班" : holidayName) : "";
+
+            let sub = "";
+            if (isChuxi) sub = "除夕";
+            else if (festivals.length) sub = festivals[0];
+            else if (jieqi) sub = jieqi;
+            else if (legalTag) sub = legalTag;
+            else sub = lunarText;
+            // ✅ 节名显示规则：除“春节”外，去掉末尾的“节”
+            if (typeof sub === "string" && sub.endsWith("节") && sub !== "春节") {
+              sub = sub.slice(0, -1);
+            }
+
+
+            const day = arg.date.getDay(); // 0 Sun, 6 Sat
+            const isWeekend = (day === 0 || day === 6);
+
+            // 只用 Bootstrap 类：避免周末红底 + 红字冲突
+            // - 补班：蓝字
+            // - 农历：灰字
+            // - 节日：工作日红字；周末用 text-bg-danger 做“白字红徽标”
+            const isFestivalLike = (sub !== lunarText && sub !== "补班"); // 除夕/节日/节气/法定假日名
+
+            let subClass = "text-secondary-emphasis";
+            if (sub === "补班") subClass = "text-light";
+            else if (!isFestivalLike) subClass = "text-secondary-emphasis";
+            else if (isWeekend) subClass = "text-danger";
+            else subClass = "text-danger";
+
+            return {
+              html: `
+                <div class="d-flex flex-column align-items-center">
+                  <div>${dayNum}</div>
+                  <div class="small ${subClass}">${sub}</div>
+                </div>
+              `
+            };
           },
 
           events: (info, successCallback) => {
@@ -326,7 +388,7 @@
         document.querySelectorAll('.fc-daygrid-day-number').forEach(dayNumber => {
           const dayCell = dayNumber.closest('.fc-daygrid-day');
 
-          dayNumber.classList.add('text-info-emphasis', 'rounded', 'px-2', 'py-1', 'fs-6', 'text-decoration-none');
+          dayNumber.classList.add('text-body', 'rounded', 'px-2', 'py-1', 'fs-6', 'text-decoration-none');
           dayNumber.style.transition = 'all 0.2s ease';
 
           if (dayCell?.classList.contains('fc-day-today')) {
@@ -334,9 +396,10 @@
             dayNumber.classList.add('text-bg-warning', 'text-dark', 'fw-bold', 'shadow-sm');
           }
 
+          // ✅ 周末：用 subtle 红底（不写 CSS，只用 bootstrap 类）
           if (dayCell?.classList.contains('fc-day-sat') || dayCell?.classList.contains('fc-day-sun')) {
             dayNumber.classList.remove('text-muted');
-            dayNumber.classList.add('text-bg-danger');
+            dayNumber.classList.add('zhou6', 'bg-gradient');
           }
 
           if (dayCell?.classList.contains('fc-day-other')) {
@@ -358,7 +421,7 @@
           });
         });
 
-        document.querySelector('.fc-toolbar-title')?.classList.add('text-secondary', 'fw-bold');
+        document.querySelector('.fc-toolbar-title')?.classList.add('text-secondary', 'fs-5');
 
         document.querySelectorAll('.fc-daygrid-day').forEach(cell => {
           cell.classList.add('border-light', 'border-opacity-50');
@@ -374,7 +437,7 @@
           const g = (e.target.value || 'A');
           this.#group = (['A','B','C','D'].includes(g) ? g : 'A');
           localStorage.setItem('shiftGroup', this.#group);
-          this.#calendar?.refetchEvents(); // eventsSet 会自动重新染色
+          this.#calendar?.refetchEvents();
         });
 
         document.addEventListener('keydown', (e) => {
@@ -390,20 +453,19 @@
     });
   </script>
 
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', async () => {
-      await navigator.serviceWorker.register('/service-worker.js');
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        await navigator.serviceWorker.register('/service-worker.js');
 
-      // 第一次安装/更新后，等接管再刷新一次，让资源走 SW 从而进入缓存
-      if (!navigator.serviceWorker.controller) {
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          window.location.reload();
-        });
-      }
-    });
-  }
-</script>
+        if (!navigator.serviceWorker.controller) {
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            window.location.reload();
+          });
+        }
+      });
+    }
+  </script>
 
 </body>
 
