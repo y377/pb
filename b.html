@@ -24,9 +24,7 @@
   <style>
     #calendar,
     #calendar .fc,
-    #calendar .fc-view-harness {
-      width: 100% !important;
-    }
+    #calendar .fc-view-harness { width: 100% !important; }
 
     #calendar .fc-scrollgrid,
     #calendar .fc-scrollgrid table,
@@ -40,7 +38,7 @@
   </style>
 </head>
 
-<body class="min-vh-100" style="background: linear-gradient(135deg, var(--bs-primary-bg-subtle) 0%, var(--bs-purple) 100%)">
+<body class="vh-100" style="background: linear-gradient(135deg, var(--bs-primary-bg-subtle) 0%, var(--bs-purple) 100%)">
   <div class="container">
     <div class="row">
       <div class="d-flex justify-content-between py-3">
@@ -57,9 +55,7 @@
         </div>
 
         <div class="input-group w-auto">
-          <span class="input-group-text">
-            <i id="shiftPin" class="bi bi-pin"></i>
-          </span>
+          <span class="input-group-text"><i id="shiftPin" class="bi bi-pin"></i></span>
           <select class="form-select" id="shiftGroup" aria-label="班次选择">
             <option value="" selected>请选择班次</option>
             <option value="A">A班</option>
@@ -77,7 +73,7 @@
   <script>
     class ShiftCalendar {
       #calendar = null;
-      #group = "A";
+      #group = null;
 
       #baseDateStr = "2026-01-01";
       #baseIndexByGroup = { A: 0, B: 1, C: 2, D: 3 };
@@ -89,26 +85,9 @@
         { icon: "bi-cup-hot-fill", name: "休息" },
       ];
 
-      #bgMap = {
-        白班: "bg-secondary-subtle",
-        夜班: "bg-dark-subtle",
-        休息: "bg-success-subtle",
-      };
+      #bgMap = { 白班: "bg-secondary-subtle", 夜班: "bg-dark-subtle", 休息: "bg-success-subtle" };
 
-      #ymdFmt = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Shanghai",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      });
-
-      #nowFmt = new Intl.DateTimeFormat("zh-CN", {
-        timeZone: "Asia/Shanghai",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        weekday: "long",
-      });
+      #ymdFmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" });
 
       #shiftCache = new Map();
       #lunarCache = new Map();
@@ -118,7 +97,6 @@
       #updatePinnedUI = (pinned) => {
         const pin = document.getElementById("shiftPin");
         if (!pin) return;
-
         pin.classList.toggle("bi-pin-fill", pinned);
         pin.classList.toggle("bi-pin", !pinned);
       };
@@ -127,7 +105,7 @@
         const saved = localStorage.getItem("shiftGroup");
         const pinned = ["A", "B", "C", "D"].includes(saved);
 
-        this.#group = pinned ? saved : "A";
+        this.#group = pinned ? saved : null;
 
         const sel = document.getElementById("shiftGroup");
         if (sel) sel.value = pinned ? saved : "";
@@ -150,6 +128,8 @@
       #mod = (n, m) => ((n % m) + m) % m;
 
       #getShiftForDay = (dateStr) => {
+        if (!this.#group) return null;
+
         const key = `${this.#group}|${dateStr}`;
         const hit = this.#shiftCache.get(key);
         if (hit) return hit;
@@ -201,9 +181,7 @@
         else if (legalTag) sub = legalTag;
         else sub = lunarText;
 
-        if (typeof sub === "string" && sub.endsWith("节") && sub !== "春节") {
-          sub = sub.slice(0, -1);
-        }
+        if (typeof sub === "string" && sub.endsWith("节") && sub !== "春节") sub = sub.slice(0, -1);
 
         const isFestivalLike = sub !== lunarText && sub !== "补班";
         let subClass = "text-secondary-emphasis";
@@ -217,6 +195,8 @@
       };
 
       #generateEvents = (start, end) => {
+        if (!this.#group) return [];
+
         const events = [];
         const msPerDay = 24 * 60 * 60 * 1000;
 
@@ -266,7 +246,6 @@
 
       #applyShiftBgIndexed = () => {
         const todayStr = this.#getShanghaiDateString(new Date());
-
         const shiftBgClasses = ["bg-secondary-subtle", "bg-dark-subtle", "bg-success-subtle"];
         const todayClasses = ["text-primary-emphasis", "bg-primary-subtle", "border", "border-primary-subtle"];
 
@@ -279,17 +258,15 @@
           }
 
           if (dateStr === todayStr) {
-            for (const el of targets) {
-              el.classList.add(...todayClasses);
-            }
+            for (const el of targets) el.classList.add(...todayClasses);
             continue;
           }
 
+          if (!this.#group) continue;
+
           const shift = this.#getShiftForDay(dateStr);
-          const bg = this.#bgMap[shift.name];
-          if (bg) {
-            for (const el of targets) el.classList.add(bg);
-          }
+          const bg = shift ? this.#bgMap[shift.name] : "";
+          if (bg) for (const el of targets) el.classList.add(bg);
         }
       };
 
@@ -364,9 +341,7 @@
             };
           },
 
-          events: (info, successCallback) => {
-            successCallback(this.#generateEvents(info.start, info.end));
-          },
+          events: (info, successCallback) => successCallback(this.#generateEvents(info.start, info.end)),
 
           datesSet: () => {
             requestAnimationFrame(() => {
@@ -435,14 +410,17 @@
           const g = e.target.value;
 
           if (!["A", "B", "C", "D"].includes(g)) {
-            if (["A", "B", "C", "D"].includes(this.#group)) {
-              e.target.value = this.#group;
-            }
+            this.#group = null;
+            localStorage.removeItem("shiftGroup");
+            this.#updatePinnedUI(false);
+            this.#shiftCache.clear();
+            this.#calendar?.refetchEvents();
+            this.#applyShiftBgIndexed();
             return;
           }
 
           this.#group = g;
-          localStorage.setItem("shiftGroup", this.#group);
+          localStorage.setItem("shiftGroup", g);
           this.#updatePinnedUI(true);
 
           this.#shiftCache.clear();
@@ -458,20 +436,15 @@
       }
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
-      new ShiftCalendar();
-    });
+    document.addEventListener("DOMContentLoaded", () => new ShiftCalendar());
   </script>
 
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", async () => {
         await navigator.serviceWorker.register("/service-worker.js");
-
         if (!navigator.serviceWorker.controller) {
-          navigator.serviceWorker.addEventListener("controllerchange", () => {
-            window.location.reload();
-          });
+          navigator.serviceWorker.addEventListener("controllerchange", () => window.location.reload());
         }
       });
     }
