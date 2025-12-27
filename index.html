@@ -2,471 +2,492 @@
 <html lang="zh">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表</title>
-  <meta name="theme-color" content="#0d6efd">
-  <meta name="mobile-web-app-capable" content="yes">
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>班表</title>
+    <meta name="theme-color" content="#0d6efd" />
+    <meta name="mobile-web-app-capable" content="yes" />
 
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="班表">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="班表" />
 
-  <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" href="/icons/icon-192.png">
-  <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png">
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
 
-  <!-- lunar-javascript（固定 patch 版本，避免 major 更新破坏） -->
-  <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.7.7/lunar.min.js"></script>
+    <script src="https://cdn.anssl.cn/lunar-javascript-1.7.7/lunar.js" integrity="sha256-l1AyS/4apjwUb4xysRQ9+SRGbBHIpSd9fZIlxUGhiqo=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdn.anssl.cn/bootstrap/css/bootstrap.min.css" integrity="sha256-2FMn2Zx6PuH5tdBQDRNwrOo60ts5wWPC9R8jK67b3t4=" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdn.anssl.cn/bootstrap-icons/font/bootstrap-icons.min.css" integrity="sha256-wefUyJrB+p0O/ADxCplCWnk9z+gX2ODyuv3lm8eDGk4=" crossorigin="anonymous" />
+    <script src="https://cdn.anssl.cn/bootstrap/js/bootstrap.bundle.min.js" integrity="sha256-5P1JGBOIxI7FBAvT/mb1fCnI5n/NhQKzNUuW7Hq0fMc=" crossorigin="anonymous"></script>
+    <script src="https://cdn.anssl.cn/fullcalendar-6.1.20/index.global.min.js" integrity="sha256-sQEgS6I+FEeOlX4oTVi7qW/HMRAh0O6vifpeZXIMRsg=" crossorigin="anonymous"></script>
+<style>
+  /* 让日历容器本身占满父容器 */
+  #calendar,
+  #calendar .fc,
+  #calendar .fc-view-harness {
+    width: 100% !important;
+  }
 
-  <link rel="stylesheet" href="https://cdn.anssl.cn/bootstrap/css/bootstrap.min.css" integrity="sha256-2FMn2Zx6PuH5tdBQDRNwrOo60ts5wWPC9R8jK67b3t4=" crossorigin="anonymous">
-  <link rel="stylesheet" href="https://cdn.anssl.cn/bootstrap-icons/font/bootstrap-icons.min.css" integrity="sha256-wefUyJrB+p0O/ADxCplCWnk9z+gX2ODyuv3lm8eDGk4=" crossorigin="anonymous">
-  <script src="https://cdn.anssl.cn/bootstrap/js/bootstrap.bundle.min.js" integrity="sha256-5P1JGBOIxI7FBAvT/mb1fCnI5n/NhQKzNUuW7Hq0fMc=" crossorigin="anonymous"></script>
-  <script src="https://cdn.anssl.cn/fullcalendar-6.1.20/index.global.min.js" integrity="sha256-sQEgS6I+FEeOlX4oTVi7qW/HMRAh0O6vifpeZXIMRsg=" crossorigin="anonymous"></script>
-  <style>
-    .zhou6 {background: #c5b3e6}
-  </style>
+  /* 关键：强制 FullCalendar 的网格 table 撑满宽度（解决右侧空白） */
+  #calendar .fc-scrollgrid,
+  #calendar .fc-scrollgrid table,
+  #calendar .fc-col-header,
+  #calendar .fc-col-header table,
+  #calendar .fc-daygrid-body,
+  #calendar .fc-daygrid-body table {
+    width: 100% !important;
+    table-layout: fixed !important;
+  }
+
+  /* 防止某些情况下出现横向滚动条/撑宽页面 */
+  html, body {
+    overflow-x: hidden;
+  }
+</style>
+
 </head>
 
-<body class="min-vh-100" style="background: linear-gradient(135deg, var(--bs-primary-bg-subtle) 0%, var(--bs-purple) 100%)">
-  <div class="container px-0 py-2 px-md-4 py-md-4">
-    <div class="bg-light bg-opacity-75 mx-2 mx-md-0 p-2 p-md-4 p-lg-5 border border-light border-opacity-50 rounded shadow-lg">
-      <div class="row align-items-center mb-2 mb-md-4 g-2">
-        <div class="col-12 col-md-8">
-          <div class="small text-body" id="current-date"></div>
-        </div>
+<!-- <body class="vh-100" style="background: linear-gradient(135deg, var(--bs-primary-bg-subtle) 0%, var(--bs-purple) 100%)"> -->
+    <body class="">
+    <div class="container">
+        <div class="row">
 
-        <div class="col-12 col-md-4">
-          <div class="d-flex gap-3 justify-content-start justify-content-md-end align-items-center flex-nowrap">
-            <div class="d-flex align-items-center gap-2 flex-nowrap">
-              <span class="small text-body text-nowrap">班次：</span>
-              <select class="form-select form-select-sm w-auto" id="shiftGroup">
-                <option value="A" selected>A班</option>
-                <option value="B">B班</option>
-                <option value="C">C班</option>
-                <option value="D">D班</option>
-              </select>
+            <div class="d-flex justify-content-between py-2">
+                <div class="btn-group" role="group" aria-label="Basic example">
+                    <button class="btn btn-outline-primary text-nowrap" id="prevMonth"><i class="bi bi-chevron-left"></i><span class="d-none d-lg-inline ms-1">上月</span></button>
+                    <button class="btn btn-primary text-nowrap" id="todayBtn"><i class="bi bi-house"></i><span class="d-none d-lg-inline ms-1">今天</span></button>
+                    <button class="btn btn-outline-primary text-nowrap" id="nextMonth"><span class="d-none d-lg-inline me-2">下月</span><i class="bi bi-chevron-right"></i></button>
+                </div>
+                <div class="input-group w-auto">
+                    <span class="input-group-text">班次：</span>
+                    <select class="form-select" id="shiftGroup" aria-label="班次选择">
+                        <option value="A" selected>A班</option>
+                        <option value="B">B班</option>
+                        <option value="C">C班</option>
+                        <option value="D">D班</option>
+                    </select>
+                </div>
+
             </div>
-
-            <button class="btn btn-outline-primary text-nowrap" id="prevMonth">
-              <i class="bi bi-chevron-left"></i><span class="d-none d-lg-inline ms-1">上月</span>
-            </button>
-            <button class="btn btn-primary text-nowrap" id="todayBtn">
-              <i class="bi bi-house"></i><span class="d-none d-lg-inline ms-1">今天</span>
-            </button>
-            <button class="btn btn-outline-primary text-nowrap" id="nextMonth">
-              <span class="d-none d-lg-inline me-2">下月</span><i class="bi bi-chevron-right"></i>
-            </button>
-          </div>
+            
         </div>
-      </div>
-
-      <div class="row">
-        <div class="col-12">
-          <div id="calendar"></div>
-        </div>
-      </div>
+        <div id="calendar"></div>
+        
     </div>
-  </div>
 
-  <script>
-    class ShiftCalendar {
-      #calendar = null;
-      #group = 'A';
+    <script>
+        class ShiftCalendar {
+            #calendar = null;
+            #group = "A";
 
-      #baseDateStr = '2026-01-01';
+            #baseDateStr = "2026-01-01";
+            #baseIndexByGroup = { A: 0, B: 1, C: 2, D: 3 };
 
-      #baseIndexByGroup = {
-        A: 0,
-        B: 1,
-        C: 2,
-        D: 3
-      };
+            #shiftTypes = [
+                { icon: "bi-sun-fill", name: "白班", startTime: "09:00", endTime: "18:00" },
+                { icon: "bi-moon-stars-fill", name: "夜班", startTime: "18:00", endTime: "09:00" },
+                { icon: "bi-cup-hot", name: "休息" },
+                { icon: "bi-cup-hot-fill", name: "休息" },
+            ];
 
-      #shiftTypes = [
-        { icon: 'bi-sun-fill', name: '白班', startTime: '09:00', endTime: '18:00' },
-        { icon: 'bi-moon-stars-fill', name: '夜班', startTime: '18:00', endTime: '09:00' },
-        { icon: 'bi-cup-hot', name: '休息' },
-        { icon: 'bi-cup-hot-fill', name: '休息' }
-      ];
+            #bgMap = {
+                白班: "bg-secondary-subtle",
+                夜班: "bg-dark-subtle",
+                休息: "bg-success-subtle",
+            };
 
-      #bgMap = {
-        '白班': 'bg-secondary-subtle',
-        '夜班': 'bg-dark-subtle',
-        '休息': 'bg-success-subtle',
-      };
+            // ✅ Intl formatter 单例（性能）
+            #ymdFmt = new Intl.DateTimeFormat("en-CA", {
+                timeZone: "Asia/Shanghai",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+            });
 
-      constructor() {
-        const saved = localStorage.getItem('shiftGroup') || 'A';
-        this.#group = (['A','B','C','D'].includes(saved) ? saved : 'A');
-        const sel = document.getElementById('shiftGroup');
-        if (sel) sel.value = this.#group;
+            #nowFmt = new Intl.DateTimeFormat("zh-CN", {
+                timeZone: "Asia/Shanghai",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                weekday: "long",
+            });
 
-        this.#updateDateTime();
-        this.#setupEventListeners();
-        this.#initCalendar();
-        setInterval(() => this.#updateDateTime(), 1000);
-      }
+            // ✅ 缓存（性能）
+            #shiftCache = new Map(); // key: `${group}|${dateStr}`
+            #lunarCache = new Map(); // key: dateStr -> { sub, subClass, lunarText }
+            #visibleCells = new Map(); // dateStr -> { frame, inner }
+            #ro = null;
 
-      #updateDateTime() {
-        const now = new Date();
-        const dateStr = now.toLocaleDateString('zh-CN', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          weekday: 'long'
-        });
-        document.getElementById('current-date').textContent = dateStr;
-      }
+            constructor() {
+                const saved = localStorage.getItem("shiftGroup") || "A";
+                this.#group = ["A", "B", "C", "D"].includes(saved) ? saved : "A";
+                const sel = document.getElementById("shiftGroup");
+                if (sel) sel.value = this.#group;
 
-      #getShanghaiDateString = (date) => {
-        const fmt = new Intl.DateTimeFormat('en-CA', {
-          timeZone: 'Asia/Shanghai',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        });
-        return fmt.format(date);
-      };
+                //   this.#updateDateTime();
+                this.#setupEventListeners();
+                this.#initCalendar();
 
-      #addDaysShanghai = (dateStr, days) => {
-        const msPerDay = 24 * 60 * 60 * 1000;
-        const d = new Date(`${dateStr}T00:00:00+08:00`);
-        d.setTime(d.getTime() + days * msPerDay);
-        return this.#getShanghaiDateString(d);
-      };
-
-      #mod = (n, m) => ((n % m) + m) % m;
-
-      #getShiftForDay = (dateStr) => {
-        const msPerDay = 24 * 60 * 60 * 1000;
-
-        const baseDate = new Date(`${this.#baseDateStr}T00:00:00+08:00`);
-        const d = new Date(`${dateStr}T00:00:00+08:00`);
-
-        const diffDays = Math.floor((d - baseDate) / msPerDay);
-        const baseIndex = this.#baseIndexByGroup[this.#group] ?? 0;
-
-        const cycleIndex = this.#mod(diffDays + baseIndex, 4);
-        return { ...this.#shiftTypes[cycleIndex], cycleIndex };
-      };
-
-      #generateEvents = (start, end) => {
-        const events = [];
-        const msPerDay = 24 * 60 * 60 * 1000;
-
-        const startStr = this.#getShanghaiDateString(start);
-        const endStr = this.#getShanghaiDateString(end);
-
-        let cur = new Date(`${startStr}T00:00:00+08:00`);
-        const endD = new Date(`${endStr}T00:00:00+08:00`);
-
-        while (cur < endD) {
-          const dayStr = this.#getShanghaiDateString(cur);
-          const shift = this.#getShiftForDay(dayStr);
-
-          events.push({
-            title: shift.name,
-            start: dayStr,
-            allDay: true,
-            backgroundColor: 'transparent',
-            borderColor: 'transparent',
-            textColor: 'inherit',
-            extendedProps: {
-              icon: shift.icon,
-              shiftType: shift.name,
-              startTime: shift.startTime ?? null,
-              endTime: shift.endTime ?? null,
-              endDate: shift.name === '夜班' ? this.#addDaysShanghai(dayStr, 1) : null
-            }
-          });
-
-          cur.setTime(cur.getTime() + msPerDay);
-        }
-        return events;
-      };
-
-      #clearBgOnVisibleCells = () => {
-        document.querySelectorAll('.fc-daygrid-day[data-date]').forEach(dayCell => {
-          const frame = dayCell.querySelector('.fc-daygrid-day-frame');
-          const inner = dayCell.querySelector('.fc-scrollgrid-sync-inner');
-          frame?.classList.remove('bg-secondary-subtle', 'bg-dark-subtle', 'bg-success-subtle');
-          inner?.classList.remove('bg-secondary-subtle', 'bg-dark-subtle', 'bg-success-subtle');
-        });
-      };
-
-      #applyBgForVisibleCells = () => {
-        this.#clearBgOnVisibleCells();
-
-        document.querySelectorAll('.fc-daygrid-day[data-date]').forEach(dayCell => {
-          const dateStr = dayCell.getAttribute('data-date');
-          if (!dateStr) return;
-
-          const shift = this.#getShiftForDay(dateStr);
-          const bg = this.#bgMap[shift.name];
-          if (!bg) return;
-
-          const frame = dayCell.querySelector('.fc-daygrid-day-frame');
-          const inner = dayCell.querySelector('.fc-scrollgrid-sync-inner');
-          frame?.classList.add(bg);
-          inner?.classList.add(bg);
-        });
-      };
-
-      #initCalendar() {
-        const calendarEl = document.getElementById('calendar');
-
-        this.#calendar = new FullCalendar.Calendar(calendarEl, {
-          initialView: 'dayGridMonth',
-          themeSystem: 'bootstrap5',
-          timeZone: 'Asia/Shanghai',
-          initialDate: new Date(),
-          headerToolbar: { left: '', center: 'title', right: '' },
-          locale: 'zh-cn',
-          firstDay: 1,
-          height: 'auto',
-          fixedWeekCount: false,
-          showNonCurrentDates: true,
-          dayMaxEvents: false,
-          moreLinkText: '更多',
-          noEventsText: '暂无排班',
-          eventDisplay: 'block',
-          displayEventTime: false,
-
-          // ✅ 日期数字 + 第二行标签（只用 Bootstrap 类，不写 CSS）
-          dayCellContent: (arg) => {
-            const dayNum = (arg.dayNumberText ?? "").replace("日", "");
-
-            const ymd = this.#getShanghaiDateString(arg.date);
-            const [y, m, d] = ymd.split("-").map(Number);
-
-            const solar = Solar.fromYmd(y, m, d);
-            const lunar = solar.getLunar();
-
-            let lunarText = lunar.getDayInChinese?.() ?? "";
-            if (lunarText === "初一") {
-              lunarText = `${lunar.getMonthInChinese?.() ?? ""}月`;
+                //   setInterval(() => this.#updateDateTime(), 1000);
             }
 
-            const festivals = lunar.getFestivals?.() ?? [];
-            const jieqi = lunar.getJieQi?.() ?? "";
+            // #updateDateTime() {
+            //   document.getElementById("current-date").textContent = this.#nowFmt.format(new Date());
+            // }
 
-            // 除夕：明天是正月初一
-            const tomorrow = new Date(`${ymd}T12:00:00+08:00`);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const tYmd = this.#getShanghaiDateString(tomorrow);
-            const [ty, tm, td] = tYmd.split("-").map(Number);
-            const tLunar = Solar.fromYmd(ty, tm, td).getLunar();
-            const isChuxi = (tLunar.getMonthInChinese?.() === "正" && tLunar.getDayInChinese?.() === "初一");
+            #getShanghaiDateString = (date) => this.#ymdFmt.format(date);
 
-            // 法定/补班
-            const h = HolidayUtil.getHoliday(ymd);
-            const isWork = h ? (h.isWork?.() ?? h.work ?? false) : false;
-            const holidayName = h ? (h.getName?.() ?? h.name ?? "") : "";
-            const legalTag = h ? (isWork ? "补班" : holidayName) : "";
+            #addDaysShanghai = (dateStr, days) => {
+                const msPerDay = 24 * 60 * 60 * 1000;
+                const d = new Date(`${dateStr}T00:00:00+08:00`);
+                d.setTime(d.getTime() + days * msPerDay);
+                return this.#getShanghaiDateString(d);
+            };
 
-            let sub = "";
-            if (isChuxi) sub = "除夕";
-            else if (festivals.length) sub = festivals[0];
-            else if (jieqi) sub = jieqi;
-            else if (legalTag) sub = legalTag;
-            else sub = lunarText;
-            // ✅ 节名显示规则：除“春节”外，去掉末尾的“节”
-            if (typeof sub === "string" && sub.endsWith("节") && sub !== "春节") {
-              sub = sub.slice(0, -1);
-            }
+            #mod = (n, m) => ((n % m) + m) % m;
 
+            // ✅ 班次缓存：避免同一天反复算
+            #getShiftForDay = (dateStr) => {
+                const key = `${this.#group}|${dateStr}`;
+                const hit = this.#shiftCache.get(key);
+                if (hit) return hit;
 
-            const day = arg.date.getDay(); // 0 Sun, 6 Sat
-            const isWeekend = (day === 0 || day === 6);
+                const msPerDay = 24 * 60 * 60 * 1000;
+                const baseDate = new Date(`${this.#baseDateStr}T00:00:00+08:00`);
+                const d = new Date(`${dateStr}T00:00:00+08:00`);
 
-            // 只用 Bootstrap 类：避免周末红底 + 红字冲突
-            // - 补班：蓝字
-            // - 农历：灰字
-            // - 节日：工作日红字；周末用 text-bg-danger 做“白字红徽标”
-            const isFestivalLike = (sub !== lunarText && sub !== "补班"); // 除夕/节日/节气/法定假日名
+                const diffDays = Math.floor((d - baseDate) / msPerDay);
+                const baseIndex = this.#baseIndexByGroup[this.#group] ?? 0;
 
-            let subClass = "text-secondary-emphasis";
-            if (sub === "补班") subClass = "text-light";
-            else if (!isFestivalLike) subClass = "text-secondary-emphasis";
-            else if (isWeekend) subClass = "text-danger";
-            else subClass = "text-danger";
+                const cycleIndex = this.#mod(diffDays + baseIndex, 4);
+                const res = { ...this.#shiftTypes[cycleIndex], cycleIndex };
 
-            return {
-              html: `
+                this.#shiftCache.set(key, res);
+                return res;
+            };
+
+            // ✅ 农历/节气/法定 缓存
+            #getLunarSub = (ymd) => {
+                const hit = this.#lunarCache.get(ymd);
+                if (hit) return hit;
+
+                const [y, m, d] = ymd.split("-").map(Number);
+                const solar = Solar.fromYmd(y, m, d);
+                const lunar = solar.getLunar();
+
+                let lunarText = lunar.getDayInChinese?.() ?? "";
+                if (lunarText === "初一") lunarText = `${lunar.getMonthInChinese?.() ?? ""}月`;
+
+                const festivals = lunar.getFestivals?.() ?? [];
+                const jieqi = lunar.getJieQi?.() ?? "";
+
+                // 除夕：明天是正月初一
+                const tomorrow = new Date(`${ymd}T12:00:00+08:00`);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const tYmd = this.#getShanghaiDateString(tomorrow);
+                const [ty, tm, td] = tYmd.split("-").map(Number);
+                const tLunar = Solar.fromYmd(ty, tm, td).getLunar();
+                const isChuxi = tLunar.getMonthInChinese?.() === "正" && tLunar.getDayInChinese?.() === "初一";
+
+                // 法定/补班
+                const h = HolidayUtil.getHoliday(ymd);
+                const isWork = h ? h.isWork?.() ?? h.work ?? false : false;
+                const holidayName = h ? h.getName?.() ?? h.name ?? "" : "";
+                const legalTag = h ? (isWork ? "补班" : holidayName) : "";
+
+                let sub = "";
+                if (isChuxi) sub = "除夕";
+                else if (festivals.length) sub = festivals[0];
+                else if (jieqi) sub = jieqi;
+                else if (legalTag) sub = legalTag;
+                else sub = lunarText;
+
+                // ✅ 节名显示规则：除“春节”外，去掉末尾的“节”
+                if (typeof sub === "string" && sub.endsWith("节") && sub !== "春节") {
+                    sub = sub.slice(0, -1);
+                }
+
+                const isFestivalLike = sub !== lunarText && sub !== "补班";
+                let subClass = "text-secondary-emphasis";
+                if (sub === "补班") subClass = "text-dark";
+                else if (!isFestivalLike) subClass = "text-secondary-emphasis";
+                else subClass = "text-danger";
+
+                const res = { sub, subClass, lunarText };
+                this.#lunarCache.set(ymd, res);
+                return res;
+            };
+
+            #generateEvents = (start, end) => {
+                const events = [];
+                const msPerDay = 24 * 60 * 60 * 1000;
+
+                const startStr = this.#getShanghaiDateString(start);
+                const endStr = this.#getShanghaiDateString(end);
+
+                let cur = new Date(`${startStr}T00:00:00+08:00`);
+                const endD = new Date(`${endStr}T00:00:00+08:00`);
+
+                while (cur < endD) {
+                    const dayStr = this.#getShanghaiDateString(cur);
+                    const shift = this.#getShiftForDay(dayStr);
+
+                    events.push({
+                        title: shift.name,
+                        start: dayStr,
+                        allDay: true,
+                        backgroundColor: "transparent",
+                        borderColor: "danger",
+                        textColor: "inherit",
+                        extendedProps: {
+                            icon: shift.icon,
+                            shiftType: shift.name,
+                            startTime: shift.startTime ?? null,
+                            endTime: shift.endTime ?? null,
+                            endDate: shift.name === "夜班" ? this.#addDaysShanghai(dayStr, 1) : null,
+                        },
+                    });
+
+                    cur.setTime(cur.getTime() + msPerDay);
+                }
+                return events;
+            };
+
+            #indexVisibleCells = () => {
+                this.#visibleCells.clear();
+                document.querySelectorAll(".fc-daygrid-day[data-date]").forEach((dayCell) => {
+                    const dateStr = dayCell.getAttribute("data-date");
+                    if (!dateStr) return;
+
+                    this.#visibleCells.set(dateStr, {
+                        frame: dayCell.querySelector(".fc-daygrid-day-frame"),
+                        inner: dayCell.querySelector(".fc-scrollgrid-sync-inner"),
+                    });
+                });
+            };
+
+            /**
+             * ✅ 核心：今天“只保留你指定的效果”
+             * - 今天：只加 text-primary-emphasis bg-primary-subtle border border-primary-subtle
+             * - 今天：不保留任何班次背景（白班/夜班/休息）
+             */
+            #applyShiftBgIndexed = () => {
+                const todayStr = this.#getShanghaiDateString(new Date());
+
+                const shiftBgClasses = ["bg-secondary-subtle", "bg-dark-subtle", "bg-success-subtle"];
+                const todayClasses = ["text-primary-emphasis", "bg-primary-subtle", "border", "border-primary-subtle"];
+
+                for (const [dateStr, els] of this.#visibleCells.entries()) {
+                    const targets = [els.frame, els.inner].filter(Boolean);
+
+                    // 先清掉：班次背景 + 今天效果（避免残留）
+                    for (const el of targets) {
+                        el.classList.remove(...shiftBgClasses);
+                        el.classList.remove(...todayClasses);
+                    }
+
+                    if (dateStr === todayStr) {
+                        // ✅ 今天：只加你的效果
+                        for (const el of targets) {
+                            el.classList.add(...todayClasses);
+                        }
+                        continue;
+                    }
+
+                    // 非今天：正常上班次底色
+                    const shift = this.#getShiftForDay(dateStr);
+                    const bg = this.#bgMap[shift.name];
+                    if (bg) {
+                        for (const el of targets) el.classList.add(bg);
+                    }
+                }
+            };
+
+            #initCalendar() {
+                const calendarEl = document.getElementById("calendar");
+
+                this.#calendar = new FullCalendar.Calendar(calendarEl, {
+                    initialView: "dayGridMonth",
+                    themeSystem: "bootstrap5",
+                    timeZone: "Asia/Shanghai",
+                    initialDate: new Date(),
+                    headerToolbar: { left: "", center: "title", right: "" },
+                    locale: "zh-cn",
+                    firstDay: 1,
+                    height: "auto",
+                    fixedWeekCount: false,
+                    showNonCurrentDates: true,
+                    dayMaxEvents: false,
+                    moreLinkText: "更多",
+                    noEventsText: "暂无排班",
+                    eventDisplay: "block",
+                    displayEventTime: false,
+
+                    // ✅ 顶部星期：周六周日红色（直接给 a 加 class）
+                    dayHeaderDidMount: (arg) => {
+                        const isWeekend = arg.dow === 0 || arg.dow === 6;
+                        arg.el.classList.add("bg-body", "py-2");
+
+                        const a = arg.el.querySelector(".fc-col-header-cell-cushion");
+                        if (a) {
+                            a.classList.add("fw-normal", "text-decoration-none");
+                            a.style.letterSpacing = "0.5px";
+                            a.classList.toggle("text-danger", isWeekend);
+                            a.classList.toggle("text-secondary-emphasis", !isWeekend);
+                        }
+                    },
+
+                    // ✅ 日期格子基础样式（周末不红底）
+                    dayCellDidMount: (arg) => {
+                        const dayCell = arg.el;
+                        // dayCell.classList.add("border-light", "border-opacity-50");
+
+                        const dayNumber = dayCell.querySelector("a.fc-daygrid-day-number");
+                        if (!dayNumber) return;
+
+                        dayNumber.classList.add("text-body", "rounded", "px-2", "py-1", "fs-6", "text-decoration-none");
+                        dayNumber.style.transition = "all 0.2s ease";
+
+                        if (dayCell.classList.contains("fc-day-other")) {
+                            dayNumber.classList.add("text-muted", "opacity-75");
+                        }
+
+                        const isToday = dayCell.classList.contains("fc-day-today");
+                        dayNumber.addEventListener("mouseenter", () => {
+                            if (!isToday) dayNumber.classList.add("bg-primary", "bg-opacity-10", "text-body");
+                            dayNumber.style.transform = "scale(1.1)";
+                        });
+                        dayNumber.addEventListener("mouseleave", () => {
+                            if (!isToday) dayNumber.classList.remove("bg-primary", "bg-opacity-10", "text-primary");
+                            dayNumber.style.transform = "scale(1)";
+                        });
+                    },
+
+                    // ✅ 日期数字 + 第二行标签（缓存后更快）
+                    dayCellContent: (arg) => {
+                        const dayNum = (arg.dayNumberText ?? "").replace("日", "");
+                        const ymd = this.#getShanghaiDateString(arg.date);
+                        const { sub, subClass } = this.#getLunarSub(ymd);
+
+                        return {
+                            html: `
                 <div class="d-flex flex-column align-items-center">
                   <div>${dayNum}</div>
                   <div class="small ${subClass}">${sub}</div>
                 </div>
-              `
-            };
-          },
+              `,
+                        };
+                    },
 
-          events: (info, successCallback) => {
-            successCallback(this.#generateEvents(info.start, info.end));
-          },
+                    events: (info, successCallback) => {
+                        successCallback(this.#generateEvents(info.start, info.end));
+                    },
 
-          datesSet: () => {
-            this.#beautifyCalendarWithBootstrap();
-            requestAnimationFrame(() => this.#applyBgForVisibleCells());
-          },
+                    datesSet: () => {
+                        requestAnimationFrame(() => {
+                            this.#indexVisibleCells();
+                            this.#applyShiftBgIndexed();
+                            document.querySelector(".fc-toolbar-title")?.classList.add("text-secondary", "fs-5");
+                        });
+                    },
 
-          eventsSet: () => {
-            requestAnimationFrame(() => this.#applyBgForVisibleCells());
-          },
+                    eventsSet: () => { },
 
-          eventContent: (arg) => {
-            const { icon, shiftType } = arg.event.extendedProps ?? {};
-            const title = arg.event.title;
+                    eventContent: (arg) => {
+                        const { icon, shiftType } = arg.event.extendedProps ?? {};
+                        const title = arg.event.title;
 
-            let colorClass = '';
-            if (shiftType === '白班') colorClass = 'text-warning-emphasis';
-            else if (shiftType === '夜班') colorClass = 'text-dark-emphasis';
-            else if (shiftType === '休息') colorClass = 'text-success';
+                        let colorClass = "";
+                        if (shiftType === "白班") colorClass = "text-warning-emphasis";
+                        else if (shiftType === "夜班") colorClass = "text-dark-emphasis";
+                        else if (shiftType === "休息") colorClass = "text-success";
 
-            return {
-              html: `
-                <div class="d-flex flex-column flex-md-row align-items-center justify-content-center gap-1 gap-md-2 p-1" style="border:none;background:transparent;">
-                  <i class="bi ${icon ?? ''} ${colorClass} fs-6"></i>
+                        return {
+                            html: `
+                <div class="d-flex flex-column flex-md-row align-items-center justify-content-center gap-1 gap-md-2 p-1" >
+                  <i class="bi ${icon ?? ""} ${colorClass} fs-6"></i>
                   <span class="${colorClass} fw-bold">${title}</span>
                 </div>
-              `
-            };
-          },
+              `,
+                        };
+                    },
 
-          eventDidMount: (info) => {
-            const today = this.#getShanghaiDateString(new Date());
-            const eventDay = this.#getShanghaiDateString(info.event.start);
+                    eventDidMount: (info) => {
+                        // 每日班次文字的设置
+                        info.el.style.border = "none";
+                        info.el.style.background = "transparent";
+                        info.el.style.boxShadow = "none";
 
-            info.el.style.border = 'none';
-            info.el.style.background = 'transparent';
-            info.el.style.boxShadow = 'none';
+                        info.el.addEventListener("mouseenter", () => {
+                            info.el.style.transform = "scale(1.05)";
+                            info.el.style.zIndex = "100";
+                            info.el.style.transition = "all 0.2s ease";
+                        });
 
-            if (eventDay === today) {
-              info.el.classList.add('border', 'border-warning', 'border-2', 'rounded');
-              info.el.style.background = 'rgba(var(--bs-warning-rgb), 0.1)';
+                        info.el.addEventListener("mouseleave", () => {
+                            info.el.style.transform = "scale(1)";
+                            info.el.style.zIndex = "1";
+                        });
+                    },
+                });
 
-              const iconEl = info.el.querySelector('i');
-              const textEl = info.el.querySelector('span');
-              if (iconEl) {
-                iconEl.classList.add('fs-5');
-                iconEl.style.filter = 'brightness(1.2)';
-              }
-              if (textEl) {
-                textEl.classList.add('fw-bold', 'fs-6');
-              }
+                this.#calendar.render();
+
+                // ✅ ResizeObserver：容器尺寸变化时强制重算布局 + 重新上底色
+                this.#ro?.disconnect();
+                this.#ro = new ResizeObserver(() => {
+                    requestAnimationFrame(() => {
+                        this.#calendar?.updateSize();
+                        this.#indexVisibleCells();
+                        this.#applyShiftBgIndexed();
+                    });
+                });
+                this.#ro.observe(calendarEl);
             }
 
-            info.el.addEventListener('mouseenter', () => {
-              info.el.style.transform = 'scale(1.05)';
-              info.el.style.zIndex = '100';
-              info.el.style.transition = 'all 0.2s ease';
-            });
+            #setupEventListeners() {
+                document.getElementById("prevMonth")?.addEventListener("click", () => this.#calendar?.prev());
+                document.getElementById("nextMonth")?.addEventListener("click", () => this.#calendar?.next());
+                document.getElementById("todayBtn")?.addEventListener("click", () => this.#calendar?.today());
 
-            info.el.addEventListener('mouseleave', () => {
-              info.el.style.transform = 'scale(1)';
-              info.el.style.zIndex = '1';
-            });
-          },
-        });
+                document.getElementById("shiftGroup")?.addEventListener("change", (e) => {
+                    const g = e.target.value || "A";
+                    this.#group = ["A", "B", "C", "D"].includes(g) ? g : "A";
+                    localStorage.setItem("shiftGroup", this.#group);
 
-        this.#calendar.render();
-        requestAnimationFrame(() => this.#applyBgForVisibleCells());
-      }
+                    this.#shiftCache.clear();
+                    this.#calendar?.refetchEvents();
+                    this.#applyShiftBgIndexed();
+                });
 
-      #beautifyCalendarWithBootstrap() {
-        document.querySelectorAll('.fc-col-header-cell').forEach(cell => {
-          cell.classList.add('bg-secondary-subtle');
-          const cushion = cell.querySelector('.fc-col-header-cell-cushion');
-          if (cushion) {
-            cushion.classList.add('text-secondary-emphasis', 'fw-semibold', 'text-decoration-none', 'py-2');
-            cushion.style.letterSpacing = '0.5px';
-          }
-        });
-
-        document.querySelectorAll('.fc-daygrid-day-number').forEach(dayNumber => {
-          const dayCell = dayNumber.closest('.fc-daygrid-day');
-
-          dayNumber.classList.add('text-body', 'rounded', 'px-2', 'py-1', 'fs-6', 'text-decoration-none');
-          dayNumber.style.transition = 'all 0.2s ease';
-
-          if (dayCell?.classList.contains('fc-day-today')) {
-            dayNumber.classList.remove('text-muted');
-            dayNumber.classList.add('text-bg-warning', 'text-dark', 'fw-bold', 'shadow-sm');
-          }
-
-          // ✅ 周末：用 subtle 红底（不写 CSS，只用 bootstrap 类）
-          if (dayCell?.classList.contains('fc-day-sat') || dayCell?.classList.contains('fc-day-sun')) {
-            dayNumber.classList.remove('text-muted');
-            dayNumber.classList.add('zhou6', 'bg-gradient');
-          }
-
-          if (dayCell?.classList.contains('fc-day-other')) {
-            dayNumber.classList.add('text-muted', 'opacity-75');
-          }
-
-          dayNumber.addEventListener('mouseenter', () => {
-            if (!dayCell?.classList.contains('fc-day-today')) {
-              dayNumber.classList.add('bg-primary', 'bg-opacity-10', 'text-body');
+                document.addEventListener("keydown", (e) => {
+                    if (e.key === "ArrowLeft") this.#calendar?.prev();
+                    if (e.key === "ArrowRight") this.#calendar?.next();
+                    if (e.key === "Home") this.#calendar?.today();
+                });
             }
-            dayNumber.style.transform = 'scale(1.1)';
-          });
-
-          dayNumber.addEventListener('mouseleave', () => {
-            if (!dayCell?.classList.contains('fc-day-today')) {
-              dayNumber.classList.remove('bg-primary', 'bg-opacity-10', 'text-primary');
-            }
-            dayNumber.style.transform = 'scale(1)';
-          });
-        });
-
-        document.querySelector('.fc-toolbar-title')?.classList.add('text-secondary', 'fs-5');
-
-        document.querySelectorAll('.fc-daygrid-day').forEach(cell => {
-          cell.classList.add('border-light', 'border-opacity-50');
-        });
-      }
-
-      #setupEventListeners() {
-        document.getElementById('prevMonth')?.addEventListener('click', () => this.#calendar?.prev());
-        document.getElementById('nextMonth')?.addEventListener('click', () => this.#calendar?.next());
-        document.getElementById('todayBtn')?.addEventListener('click', () => this.#calendar?.today());
-
-        document.getElementById('shiftGroup')?.addEventListener('change', (e) => {
-          const g = (e.target.value || 'A');
-          this.#group = (['A','B','C','D'].includes(g) ? g : 'A');
-          localStorage.setItem('shiftGroup', this.#group);
-          this.#calendar?.refetchEvents();
-        });
-
-        document.addEventListener('keydown', (e) => {
-          if (e.key === 'ArrowLeft') this.#calendar?.prev();
-          if (e.key === 'ArrowRight') this.#calendar?.next();
-          if (e.key === 'Home') this.#calendar?.today();
-        });
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      new ShiftCalendar();
-    });
-  </script>
-
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', async () => {
-        await navigator.serviceWorker.register('/service-worker.js');
-
-        if (!navigator.serviceWorker.controller) {
-          navigator.serviceWorker.addEventListener('controllerchange', () => {
-            window.location.reload();
-          });
         }
-      });
-    }
-  </script>
 
+        document.addEventListener("DOMContentLoaded", () => {
+            new ShiftCalendar();
+        });
+    </script>
+
+    <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", async () => {
+                await navigator.serviceWorker.register("/service-worker.js");
+
+                if (!navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.addEventListener("controllerchange", () => {
+                        window.location.reload();
+                    });
+                }
+            });
+        }
+    </script>
 </body>
 
 </html>
