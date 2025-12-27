@@ -42,26 +42,25 @@
   }
 
   /* 防止某些情况下出现横向滚动条/撑宽页面 */
-  html, body {
+  /* html, body {
     overflow-x: hidden;
-  }
+  } */
 </style>
 
 </head>
 
-<!-- <body class="vh-100" style="background: linear-gradient(135deg, var(--bs-primary-bg-subtle) 0%, var(--bs-purple) 100%)"> -->
-    <body class="">
+<body class="vh-100" style="background: linear-gradient(135deg, var(--bs-primary-bg-subtle) 0%, var(--bs-purple) 100%)">
+    <!-- <body class="vh-100"> -->
     <div class="container">
         <div class="row">
-
-            <div class="d-flex justify-content-between py-2">
+            <div class="d-flex justify-content-between py-3">
                 <div class="btn-group" role="group" aria-label="Basic example">
-                    <button class="btn btn-outline-primary text-nowrap" id="prevMonth"><i class="bi bi-chevron-left"></i><span class="d-none d-lg-inline ms-1">上月</span></button>
-                    <button class="btn btn-primary text-nowrap" id="todayBtn"><i class="bi bi-house"></i><span class="d-none d-lg-inline ms-1">今天</span></button>
-                    <button class="btn btn-outline-primary text-nowrap" id="nextMonth"><span class="d-none d-lg-inline me-2">下月</span><i class="bi bi-chevron-right"></i></button>
+                    <button class="btn btn-outline-secondary" id="prevMonth"><i class="bi bi-chevron-left"></i><span class="d-none d-lg-inline ms-1">上月</span></button>
+                    <button class="btn btn-outline-secondary" id="todayBtn"><i class="bi bi-house"></i><span class="d-none d-lg-inline ms-1">今天</span></button>
+                    <button class="btn btn-outline-secondary" id="nextMonth"><span class="d-none d-lg-inline me-2">下月</span><i class="bi bi-chevron-right"></i></button>
                 </div>
                 <div class="input-group w-auto">
-                    <span class="input-group-text">班次：</span>
+                    <span class="input-group-text">班次</span>
                     <select class="form-select" id="shiftGroup" aria-label="班次选择">
                         <option value="A" selected>A班</option>
                         <option value="B">B班</option>
@@ -69,12 +68,9 @@
                         <option value="D">D班</option>
                     </select>
                 </div>
-
             </div>
-            
         </div>
         <div id="calendar"></div>
-        
     </div>
 
     <script>
@@ -389,7 +385,7 @@
                         requestAnimationFrame(() => {
                             this.#indexVisibleCells();
                             this.#applyShiftBgIndexed();
-                            document.querySelector(".fc-toolbar-title")?.classList.add("text-secondary", "fs-5");
+                            document.querySelector(".fc-toolbar-title")?.classList.add("text-primary-emphasis", "fs-4", "pt-2");
                         });
                     },
 
