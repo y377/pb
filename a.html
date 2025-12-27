@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>班表</title>
+  <meta name="theme-color" content="#0d6efd" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="班表" />
+
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
+
+  <script src="https://cdn.anssl.cn/lunar-javascript-1.7.7/lunar.js" integrity="sha256-l1AyS/4apjwUb4xysRQ9+SRGbBHIpSd9fZIlxUGhiqo=" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="https://cdn.anssl.cn/bootstrap/css/bootstrap.min.css" integrity="sha256-2FMn2Zx6PuH5tdBQDRNwrOo60ts5wWPC9R8jK67b3t4=" crossorigin="anonymous" />
+  <link rel="stylesheet" href="https://cdn.anssl.cn/bootstrap-icons/font/bootstrap-icons.min.css" integrity="sha256-wefUyJrB+p0O/ADxCplCWnk9z+gX2ODyuv3lm8eDGk4=" crossorigin="anonymous" />
+  <script src="https://cdn.anssl.cn/bootstrap/js/bootstrap.bundle.min.js" integrity="sha256-5P1JGBOIxI7FBAvT/mb1fCnI5n/NhQKzNUuW7Hq0fMc=" crossorigin="anonymous"></script>
+  <script src="https://cdn.anssl.cn/fullcalendar-6.1.20/index.global.min.js" integrity="sha256-sQEgS6I+FEeOlX4oTVi7qW/HMRAh0O6vifpeZXIMRsg=" crossorigin="anonymous"></script>
+
+  <style>
+    #calendar,
+    #calendar .fc,
+    #calendar .fc-view-harness { width: 100% !important; }
+
+    #calendar .fc-scrollgrid,
+    #calendar .fc-scrollgrid table,
+    #calendar .fc-col-header,
+    #calendar .fc-col-header table,
+    #calendar .fc-daygrid-body,
+    #calendar .fc-daygrid-body table {
+      width: 100% !important;
+      table-layout: fixed !important;
+    }
+  </style>
+</head>
+
+<body class="vh-100" style="background: linear-gradient(135deg, var(--bs-primary-bg-subtle) 0%, var(--bs-purple) 100%)">
+  <div class="container">
+    <div class="row">
+      <div class="d-flex justify-content-between py-3">
+        <div class="btn-group" role="group" aria-label="Basic example">
+          <button class="btn btn-outline-secondary" id="prevMonth">
+            <i class="bi bi-chevron-left"></i><span class="d-none d-lg-inline ms-1">上月</span>
+          </button>
+          <button class="btn btn-outline-secondary" id="todayBtn">
+            <i class="bi bi-house"></i><span class="d-none d-lg-inline ms-1">今天</span>
+          </button>
+          <button class="btn btn-outline-secondary" id="nextMonth">
+            <span class="d-none d-lg-inline me-2">下月</span><i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+
+        <div class="input-group w-auto">
+          <span class="input-group-text"><i id="shiftPin" class="bi bi-pin"></i></span>
+          <select class="form-select" id="shiftGroup" aria-label="班次选择">
+            <option value="" selected>请选择班次</option>
+            <option value="A">A班</option>
+            <option value="B">B班</option>
+            <option value="C">C班</option>
+            <option value="D">D班</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div id="calendar"></div>
+  </div>
+
+  <script>
+    class ShiftCalendar {
+      #calendar = null;
+      #group = "A";
+
+      #baseDateStr = "2026-01-01";
+      #baseIndexByGroup = { A: 0, B: 1, C: 2, D: 3 };
+
+      #shiftTypes = [
+        { icon: "bi-sun-fill", name: "白班", startTime: "09:00", endTime: "18:00" },
+        { icon: "bi-moon-stars-fill", name: "夜班", startTime: "18:00", endTime: "09:00" },
+        { icon: "bi-cup-hot", name: "休息" },
+        { icon: "bi-cup-hot-fill", name: "休息" },
+      ];
+
+      #bgMap = { 白班: "bg-secondary-subtle", 夜班: "bg-dark-subtle", 休息: "bg-success-subtle" };
+
+      #ymdFmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" });
+
+      #shiftCache = new Map();
+      #lunarCache = new Map();
+      #visibleCells = new Map();
+      #ro = null;
+
+      #updatePinnedUI = (pinned) => {
+        const pin = document.getElementById("shiftPin");
+        if (!pin) return;
+        pin.classList.toggle("bi-pin-fill", pinned);
+        pin.classList.toggle("bi-pin", !pinned);
+      };
+
+      constructor() {
+        const saved = localStorage.getItem("shiftGroup");
+        const pinned = ["A", "B", "C", "D"].includes(saved);
+
+        this.#group = pinned ? saved : "A";
+
+        const sel = document.getElementById("shiftGroup");
+        if (sel) sel.value = pinned ? saved : "";
+
+        this.#updatePinnedUI(pinned);
+
+        this.#setupEventListeners();
+        this.#initCalendar();
+      }
+
+      #getShanghaiDateString = (date) => this.#ymdFmt.format(date);
+
+      #addDaysShanghai = (dateStr, days) => {
+        const msPerDay = 24 * 60 * 60 * 1000;
+        const d = new Date(`${dateStr}T00:00:00+08:00`);
+        d.setTime(d.getTime() + days * msPerDay);
+        return this.#getShanghaiDateString(d);
+      };
+
+      #mod = (n, m) => ((n % m) + m) % m;
+
+      #getShiftForDay = (dateStr) => {
+        const key = `${this.#group}|${dateStr}`;
+        const hit = this.#shiftCache.get(key);
+        if (hit) return hit;
+
+        const msPerDay = 24 * 60 * 60 * 1000;
+        const baseDate = new Date(`${this.#baseDateStr}T00:00:00+08:00`);
+        const d = new Date(`${dateStr}T00:00:00+08:00`);
+
+        const diffDays = Math.floor((d - baseDate) / msPerDay);
+        const baseIndex = this.#baseIndexByGroup[this.#group] ?? 0;
+
+        const cycleIndex = this.#mod(diffDays + baseIndex, 4);
+        const res = { ...this.#shiftTypes[cycleIndex], cycleIndex };
+
+        this.#shiftCache.set(key, res);
+        return res;
+      };
+
+      #getLunarSub = (ymd) => {
+        const hit = this.#lunarCache.get(ymd);
+        if (hit) return hit;
+
+        const [y, m, d] = ymd.split("-").map(Number);
+        const solar = Solar.fromYmd(y, m, d);
+        const lunar = solar.getLunar();
+
+        let lunarText = lunar.getDayInChinese?.() ?? "";
+        if (lunarText === "初一") lunarText = `${lunar.getMonthInChinese?.() ?? ""}月`;
+
+        const festivals = lunar.getFestivals?.() ?? [];
+        const jieqi = lunar.getJieQi?.() ?? "";
+
+        const tomorrow = new Date(`${ymd}T12:00:00+08:00`);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tYmd = this.#getShanghaiDateString(tomorrow);
+        const [ty, tm, td] = tYmd.split("-").map(Number);
+        const tLunar = Solar.fromYmd(ty, tm, td).getLunar();
+        const isChuxi = tLunar.getMonthInChinese?.() === "正" && tLunar.getDayInChinese?.() === "初一";
+
+        const h = HolidayUtil.getHoliday(ymd);
+        const isWork = h ? h.isWork?.() ?? h.work ?? false : false;
+        const holidayName = h ? h.getName?.() ?? h.name ?? "" : "";
+        const legalTag = h ? (isWork ? "补班" : holidayName) : "";
+
+        let sub = "";
+        if (isChuxi) sub = "除夕";
+        else if (festivals.length) sub = festivals[0];
+        else if (jieqi) sub = jieqi;
+        else if (legalTag) sub = legalTag;
+        else sub = lunarText;
+
+        if (typeof sub === "string" && sub.endsWith("节") && sub !== "春节") sub = sub.slice(0, -1);
+
+        const isFestivalLike = sub !== lunarText && sub !== "补班";
+        let subClass = "text-secondary-emphasis";
+        if (sub === "补班") subClass = "text-dark";
+        else if (!isFestivalLike) subClass = "text-secondary-emphasis";
+        else subClass = "text-danger";
+
+        const res = { sub, subClass, lunarText };
+        this.#lunarCache.set(ymd, res);
+        return res;
+      };
+
+      #generateEvents = (start, end) => {
+        const events = [];
+        const msPerDay = 24 * 60 * 60 * 1000;
+
+        const startStr = this.#getShanghaiDateString(start);
+        const endStr = this.#getShanghaiDateString(end);
+
+        let cur = new Date(`${startStr}T00:00:00+08:00`);
+        const endD = new Date(`${endStr}T00:00:00+08:00`);
+
+        while (cur < endD) {
+          const dayStr = this.#getShanghaiDateString(cur);
+          const shift = this.#getShiftForDay(dayStr);
+
+          events.push({
+            title: shift.name,
+            start: dayStr,
+            allDay: true,
+            backgroundColor: "transparent",
+            borderColor: "danger",
+            textColor: "inherit",
+            extendedProps: {
+              icon: shift.icon,
+              shiftType: shift.name,
+              startTime: shift.startTime ?? null,
+              endTime: shift.endTime ?? null,
+              endDate: shift.name === "夜班" ? this.#addDaysShanghai(dayStr, 1) : null,
+            },
+          });
+
+          cur.setTime(cur.getTime() + msPerDay);
+        }
+        return events;
+      };
+
+      #indexVisibleCells = () => {
+        this.#visibleCells.clear();
+        document.querySelectorAll(".fc-daygrid-day[data-date]").forEach((dayCell) => {
+          const dateStr = dayCell.getAttribute("data-date");
+          if (!dateStr) return;
+
+          this.#visibleCells.set(dateStr, {
+            frame: dayCell.querySelector(".fc-daygrid-day-frame"),
+            inner: dayCell.querySelector(".fc-scrollgrid-sync-inner"),
+          });
+        });
+      };
+
+      #applyShiftBgIndexed = () => {
+        const todayStr = this.#getShanghaiDateString(new Date());
+        const shiftBgClasses = ["bg-secondary-subtle", "bg-dark-subtle", "bg-success-subtle"];
+        const todayClasses = ["text-primary-emphasis", "bg-primary-subtle", "border", "border-primary-subtle"];
+
+        for (const [dateStr, els] of this.#visibleCells.entries()) {
+          const targets = [els.frame, els.inner].filter(Boolean);
+
+          for (const el of targets) {
+            el.classList.remove(...shiftBgClasses);
+            el.classList.remove(...todayClasses);
+          }
+
+          if (dateStr === todayStr) {
+            for (const el of targets) el.classList.add(...todayClasses);
+            continue;
+          }
+
+          const shift = this.#getShiftForDay(dateStr);
+          const bg = shift ? this.#bgMap[shift.name] : "";
+          if (bg) for (const el of targets) el.classList.add(bg);
+        }
+      };
+
+      #initCalendar() {
+        const calendarEl = document.getElementById("calendar");
+
+        this.#calendar = new FullCalendar.Calendar(calendarEl, {
+          initialView: "dayGridMonth",
+          themeSystem: "bootstrap5",
+          timeZone: "Asia/Shanghai",
+          initialDate: new Date(),
+          headerToolbar: { left: "", center: "title", right: "" },
+          locale: "zh-cn",
+          firstDay: 1,
+          height: "auto",
+          fixedWeekCount: false,
+          showNonCurrentDates: true,
+          dayMaxEvents: false,
+          moreLinkText: "更多",
+          noEventsText: "暂无排班",
+          eventDisplay: "block",
+          displayEventTime: false,
+
+          dayHeaderDidMount: (arg) => {
+            const isWeekend = arg.dow === 0 || arg.dow === 6;
+            arg.el.classList.add("bg-body", "py-2");
+
+            const a = arg.el.querySelector(".fc-col-header-cell-cushion");
+            if (a) {
+              a.classList.add("fw-normal", "text-decoration-none");
+              a.style.letterSpacing = "0.5px";
+              a.classList.toggle("text-danger", isWeekend);
+              a.classList.toggle("text-secondary-emphasis", !isWeekend);
+            }
+          },
+
+          dayCellDidMount: (arg) => {
+            const dayCell = arg.el;
+            const dayNumber = dayCell.querySelector("a.fc-daygrid-day-number");
+            if (!dayNumber) return;
+
+            dayNumber.classList.add("text-body", "rounded", "px-2", "py-1", "fs-6", "text-decoration-none");
+            dayNumber.style.transition = "all 0.2s ease";
+
+            if (dayCell.classList.contains("fc-day-other")) {
+              dayNumber.classList.add("text-muted", "opacity-75");
+            }
+
+            const isToday = dayCell.classList.contains("fc-day-today");
+            dayNumber.addEventListener("mouseenter", () => {
+              if (!isToday) dayNumber.classList.add("bg-primary", "bg-opacity-10", "text-body");
+              dayNumber.style.transform = "scale(1.1)";
+            });
+            dayNumber.addEventListener("mouseleave", () => {
+              if (!isToday) dayNumber.classList.remove("bg-primary", "bg-opacity-10", "text-primary");
+              dayNumber.style.transform = "scale(1)";
+            });
+          },
+
+          dayCellContent: (arg) => {
+            const dayNum = (arg.dayNumberText ?? "").replace("日", "");
+            const ymd = this.#getShanghaiDateString(arg.date);
+            const { sub, subClass } = this.#getLunarSub(ymd);
+
+            return {
+              html: `
+                <div class="d-flex flex-column align-items-center">
+                  <div>${dayNum}</div>
+                  <div class="small ${subClass}">${sub}</div>
+                </div>
+              `,
+            };
+          },
+
+          events: (info, successCallback) => successCallback(this.#generateEvents(info.start, info.end)),
+
+          datesSet: () => {
+            requestAnimationFrame(() => {
+              this.#indexVisibleCells();
+              this.#applyShiftBgIndexed();
+              document.querySelector(".fc-toolbar-title")?.classList.add("text-primary-emphasis", "pt-2");
+            });
+          },
+
+          eventContent: (arg) => {
+            const { icon, shiftType } = arg.event.extendedProps ?? {};
+            const title = arg.event.title;
+
+            let colorClass = "";
+            if (shiftType === "白班") colorClass = "text-warning-emphasis";
+            else if (shiftType === "夜班") colorClass = "text-dark-emphasis";
+            else if (shiftType === "休息") colorClass = "text-success";
+
+            return {
+              html: `
+                <div class="d-flex flex-column flex-md-row align-items-center justify-content-center gap-1 gap-md-2 p-1">
+                  <i class="bi ${icon ?? ""} ${colorClass} fs-6"></i>
+                  <span class="${colorClass} fw-bold">${title}</span>
+                </div>
+              `,
+            };
+          },
+
+          eventDidMount: (info) => {
+            info.el.style.border = "none";
+            info.el.style.background = "transparent";
+            info.el.style.boxShadow = "none";
+
+            info.el.addEventListener("mouseenter", () => {
+              info.el.style.transform = "scale(1.05)";
+              info.el.style.zIndex = "100";
+              info.el.style.transition = "all 0.2s ease";
+            });
+
+            info.el.addEventListener("mouseleave", () => {
+              info.el.style.transform = "scale(1)";
+              info.el.style.zIndex = "1";
+            });
+          },
+        });
+
+        this.#calendar.render();
+
+        this.#ro?.disconnect();
+        this.#ro = new ResizeObserver(() => {
+          requestAnimationFrame(() => {
+            this.#calendar?.updateSize();
+            this.#indexVisibleCells();
+            this.#applyShiftBgIndexed();
+          });
+        });
+        this.#ro.observe(calendarEl);
+      }
+
+      #setupEventListeners() {
+        document.getElementById("prevMonth")?.addEventListener("click", () => this.#calendar?.prev());
+        document.getElementById("nextMonth")?.addEventListener("click", () => this.#calendar?.next());
+        document.getElementById("todayBtn")?.addEventListener("click", () => this.#calendar?.today());
+
+        document.getElementById("shiftGroup")?.addEventListener("change", (e) => {
+          const g = e.target.value;
+
+          if (!["A", "B", "C", "D"].includes(g)) {
+            localStorage.removeItem("shiftGroup");
+            this.#updatePinnedUI(false);
+
+            this.#group = "A";
+            this.#shiftCache.clear();
+            this.#calendar?.refetchEvents();
+            this.#applyShiftBgIndexed();
+            return;
+          }
+
+          this.#group = g;
+          localStorage.setItem("shiftGroup", g);
+          this.#updatePinnedUI(true);
+
+          this.#shiftCache.clear();
+          this.#calendar?.refetchEvents();
+          this.#applyShiftBgIndexed();
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "ArrowLeft") this.#calendar?.prev();
+          if (e.key === "ArrowRight") this.#calendar?.next();
+          if (e.key === "Home") this.#calendar?.today();
+        });
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => new ShiftCalendar());
+  </script>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", async () => {
+        await navigator.serviceWorker.register("/service-worker.js");
+        if (!navigator.serviceWorker.controller) {
+          navigator.serviceWorker.addEventListener("controllerchange", () => window.location.reload());
+        }
+      });
+    }
+  </script>
+</body>
+</html>
