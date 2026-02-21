@@ -648,9 +648,14 @@ const todayClasses = [
           });
         }
       }
-
+refreshTheme() {
+  requestAnimationFrame(() => {
+    this.#indexVisibleCells();
+    this.#applyShiftBgIndexed();
+  });
+}
       document.addEventListener("DOMContentLoaded", () => {
-        new ShiftCalendar();
+        window.shiftCalendar = new ShiftCalendar();
       });
     </script>
     <script>
@@ -697,6 +702,7 @@ const todayClasses = [
                 ? "主题：暗色（点击切换）"
                 : "主题：亮色（点击切换）";
           }
+          window.shiftCalendar?.refreshTheme(); // ✅ 关键：主题切换后立即重刷“今天背景”
         };
 
         // 初始化
