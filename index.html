@@ -647,13 +647,13 @@ const todayClasses = [
             }
           });
         }
-      }
-refreshTheme() {
-  requestAnimationFrame(() => {
-    this.#indexVisibleCells();
-    this.#applyShiftBgIndexed();
-  });
+        refreshTheme() {
+        requestAnimationFrame(() => {
+        this.#indexVisibleCells();
+        this.#applyShiftBgIndexed();
+        });
 }
+      }
       document.addEventListener("DOMContentLoaded", () => {
         window.shiftCalendar = new ShiftCalendar();
       });
