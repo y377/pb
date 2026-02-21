@@ -386,48 +386,41 @@
             "bg-dark-subtle",
             "bg-success-subtle",
           ];
-          // const todayClasses = [
-          //   "text-primary-emphasis",
-          //   "bg-primary-subtle",
-          //   "border",
-          //   "border-primary-subtle",
-          //   "today-ring",
-          // ];
-          const isDark = document.documentElement.getAttribute("data-bs-theme") === "dark";
+  const isDark = document.documentElement.getAttribute("data-bs-theme") === "dark";
 
-const todayClasses = [
+const todayBaseClasses = [
   "text-primary-emphasis",
-  isDark ? "bg-white" : "bg-primary-subtle",
   "border",
   "border-primary-subtle",
   "today-ring",
 ];
 
-          for (const [dateStr, els] of this.#visibleCells.entries()) {
-            const targets = [els.frame, els.inner].filter(Boolean);
+// 今天可能出现过的背景类：两种都删
+const todayBgClasses = ["bg-primary-subtle", "bg-white"];
 
-            // 先清掉：班次背景 + 今天效果（避免残留）
-            for (const el of targets) {
-              el.classList.remove(...shiftBgClasses);
-              el.classList.remove(...todayClasses);
-            }
+const todayAddClasses = [
+  ...todayBaseClasses,
+  isDark ? "bg-white" : "bg-primary-subtle",
+];
 
-            if (dateStr === todayStr) {
-              // ✅ 今天：只加你的效果
-              for (const el of targets) {
-                el.classList.add(...todayClasses);
-              }
-              continue;
-            }
+for (const [dateStr, els] of this.#visibleCells.entries()) {
+  const targets = [els.frame, els.inner].filter(Boolean);
 
-            // 非今天：正常上班次底色
-            const shift = this.#getShiftForDay(dateStr);
-            const bg = this.#bgMap[shift.name];
-            if (bg) {
-              for (const el of targets) el.classList.add(bg);
-            }
-          }
-        };
+  for (const el of targets) {
+    el.classList.remove(...shiftBgClasses);
+    el.classList.remove(...todayBaseClasses);
+    el.classList.remove(...todayBgClasses);
+  }
+
+  if (dateStr === todayStr) {
+    for (const el of targets) el.classList.add(...todayAddClasses);
+    continue;
+  }
+
+  const shift = this.#getShiftForDay(dateStr);
+  const bg = this.#bgMap[shift.name];
+  if (bg) for (const el of targets) el.classList.add(bg);
+}
 
         #initCalendar() {
           const calendarEl = document.getElementById("calendar");
