@@ -386,13 +386,22 @@
             "bg-dark-subtle",
             "bg-success-subtle",
           ];
-          const todayClasses = [
-            "text-primary-emphasis",
-            "bg-primary-subtle",
-            "border",
-            "border-primary-subtle",
-            "today-ring",
-          ];
+          // const todayClasses = [
+          //   "text-primary-emphasis",
+          //   "bg-primary-subtle",
+          //   "border",
+          //   "border-primary-subtle",
+          //   "today-ring",
+          // ];
+          const isDark = document.documentElement.getAttribute("data-bs-theme") === "dark";
+
+const todayClasses = [
+  "text-primary-emphasis",
+  isDark ? "bg-white" : "bg-primary-subtle",
+  "border",
+  "border-primary-subtle",
+  "today-ring",
+];
 
           for (const [dateStr, els] of this.#visibleCells.entries()) {
             const targets = [els.frame, els.inner].filter(Boolean);
